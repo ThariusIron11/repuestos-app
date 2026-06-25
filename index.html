@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Repuestos</title>
+  <meta name="theme-color" content="#1a237e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Repuestos" />
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f0f0f0; min-height: 100vh;
+      display: flex; flex-direction: column; align-items: center;
+      padding: 20px 16px 40px;
+    }
+    .tabs {
+      display: flex; background: #fff; border-radius: 16px; padding: 4px;
+      gap: 3px; margin-bottom: 18px; box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+      width: 100%; max-width: 480px; overflow-x: auto; scrollbar-width: none;
+    }
+    .tabs::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex-shrink: 0; padding: 9px 8px; border: none; border-radius: 12px;
+      font-size: 11px; font-weight: 600; cursor: pointer;
+      background: transparent; color: #888; transition: all 0.2s; white-space: nowrap;
+    }
+    .tab-btn.active { background: #1a237e; color: #fff; }
+    .panel { display: none; width: 100%; max-width: 480px; }
+    .panel.active { display: block; }
+    .app-frame { background: #fff; border-radius: 24px; padding: 24px 18px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.10); }
+    .app-title { font-size: 20px; font-weight: 700; color: #1a1a1a; text-align: center; margin-bottom: 4px; }
+    .app-sub { font-size: 12px; color: #999; text-align: center; margin-bottom: 20px; }
+    input[type="text"], input[type="tel"], input[type="number"], input[type="search"], textarea {
+      width: 100%; padding: 11px 13px; font-size: 15px;
+      border: 1.5px solid #ddd; border-radius: 12px; outline: none;
+      color: #1a1a1a; background: #fafafa; transition: border-color 0.2s; font-family: inherit;
+    }
+    input:focus, textarea:focus { border-color: #1a237e; background: #fff; }
+    input::placeholder, textarea::placeholder { color: #bbb; }
+    textarea { resize: vertical; min-height: 70px; }
+    .field-label { font-size: 13px; color: #555; margin-bottom: 6px; font-weight: 500; margin-top: 14px; }
+    .sub-label { font-size: 10px; color: #aaa; text-transform: uppercase; letter-spacing: 0.4px; font-weight: 600; margin-bottom: 6px; }
+    .tipo-selector { display: flex; gap: 8px; }
+    .tipo-btn { flex: 1; padding: 10px 6px; border-radius: 12px; border: 2px solid #e0ddf8; font-size: 13px; font-weight: 700; cursor: pointer; background: #f7f6ff; color: #7a7a9d; transition: all 0.2s; text-align: center; }
+    .tipo-btn.motor    { background: #e3f2fd; border-color: #1565c0; color: #1565c0; }
+    .tipo-btn.reductor { background: #fce4ec; border-color: #c62828; color: #c62828; }
+    .filtro-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; margin-bottom: 14px; }
+    .filtro-scroll::-webkit-scrollbar { display: none; }
+    .filtro-chip { flex-shrink: 0; padding: 6px 16px; border-radius: 20px; font-size: 13px; font-weight: 600; border: 1.5px solid #e0ddf8; background: #f7f6ff; color: #7a7a9d; cursor: pointer; transition: all 0.2s; white-space: nowrap; }
+    .filtro-chip.active { background: #1a237e; color: #fff; border-color: #1a237e; }
+    .filtro-chip.motor.active { background: #1565c0; border-color: #1565c0; }
+    .filtro-chip.reductor.active { background: #c62828; border-color: #c62828; }
+    .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+    .badge.motor    { background: #e3f2fd; color: #1565c0; border: 1px solid #1565c0; }
+    .badge.reductor { background: #fce4ec; color: #c62828; border: 1px solid #c62828; }
+    .btn-primary { width: 100%; padding: 13px; font-size: 15px; font-weight: 600; border-radius: 14px; background: #1a237e; color: #fff; border: none; cursor: pointer; margin-top: 16px; transition: background 0.2s; }
+    .btn-primary:hover { background: #283593; }
+    .btn-primary:disabled { background: #bbb; cursor: not-allowed; }
+    .btn-secondary { padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; background: #f0eeff; color: #1a237e; border: 1.5px solid #c5bff5; cursor: pointer; }
+    .btn-danger { padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; background: #fff0f0; color: #e53935; border: 1.5px solid #ffcdd2; cursor: pointer; }
+    .search-wrap { position: relative; margin-bottom: 14px; }
+    .search-wrap input { padding-left: 38px; }
+    .search-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 16px; pointer-events: none; }
+    .equipo-card { background: #fff; border-radius: 16px; border: 1.5px solid #e0ddf8; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .equipo-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px; gap: 8px; }
+    .equipo-nombre { font-size: 15px; font-weight: 700; color: #1a237e; }
+    .equipo-acciones { display: flex; gap: 6px; flex-shrink: 0; }
+    .repuesto-item { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #f7f6ff; border-radius: 9px; margin-bottom: 6px; font-size: 13px; }
+    .repuesto-und { font-size: 11px; font-weight: 700; color: #1a237e; background: #e8eaf6; padding: 2px 8px; border-radius: 10px; flex-shrink: 0; }
+    .rep-form-row { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+    .rep-form-row input[type="text"]   { flex: 3; margin: 0; }
+    .rep-form-row input[type="number"] { flex: 1; margin: 0; text-align: center; min-width: 60px; }
+    .btn-quitar-rep { background: none; border: none; color: #ddd; font-size: 16px; cursor: pointer; padding: 4px; flex-shrink: 0; }
+    .btn-quitar-rep:hover { color: #e53935; }
+    .btn-add-rep { width: 100%; padding: 8px; font-size: 12px; font-weight: 600; border-radius: 8px; background: #f0eeff; color: #1a237e; border: 1.5px dashed #c5bff5; cursor: pointer; margin-bottom: 12px; }
+
+    /* SOLICITUD - equipo seleccionable */
+    .equipo-select-card { background: #f7f6ff; border-radius: 14px; border: 1.5px solid #e0ddf8; padding: 14px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s; }
+    .equipo-select-card:hover { border-color: #1a237e; }
+    .equipo-select-card.agregado { border-color: #43a047; background: #f0fff4; }
+    .equipo-select-nombre { font-size: 14px; font-weight: 700; color: #1a237e; margin-bottom: 4px; }
+
+    /* CARRITO DE SOLICITUD */
+    .carrito-equipo { background: #fff; border-radius: 14px; border: 1.5px solid #c5bff5; padding: 14px; margin-bottom: 12px; }
+    .carrito-equipo-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .carrito-equipo-nombre { font-size: 14px; font-weight: 700; color: #1a237e; }
+    .rep-ajuste-row { display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: #f9f9ff; border-radius: 10px; margin-bottom: 6px; border: 1.5px solid #eee; }
+    .rep-ajuste-row.removido { opacity: 0.4; }
+    .rep-ajuste-nombre { flex: 1; font-size: 13px; color: #333; }
+    .qty-control { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .qty-btn { width: 28px; height: 28px; border-radius: 8px; border: 1.5px solid #c5bff5; background: #f0eeff; color: #1a237e; font-size: 16px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+    .qty-val { font-size: 14px; font-weight: 700; color: #1a237e; min-width: 24px; text-align: center; }
+    .btn-remove-rep { background: none; border: none; color: #ddd; font-size: 16px; cursor: pointer; padding: 2px 4px; }
+    .btn-remove-rep:hover { color: #e53935; }
+    .btn-restore-rep { background: none; border: none; color: #aaa; font-size: 11px; cursor: pointer; text-decoration: underline; padding: 2px 4px; }
+
+    /* CONFIRMAR */
+    .confirm-bloque { background: #f7f6ff; border-radius: 14px; border: 1.5px solid #e0ddf8; padding: 14px; margin-bottom: 12px; }
+    .confirm-bloque-titulo { font-size: 14px; font-weight: 700; color: #1a237e; margin-bottom: 8px; }
+    .confirm-rep-row { display: flex; justify-content: space-between; align-items: center; padding: 7px 10px; background: #fff; border-radius: 9px; margin-bottom: 6px; font-size: 13px; }
+    .confirm-rep-und { font-size: 11px; font-weight: 700; color: #1a237e; background: #e8eaf6; padding: 2px 8px; border-radius: 10px; }
+    .msg-editable { background: #fff; border: 1.5px solid #1a237e; border-radius: 14px; padding: 14px; margin-top: 10px; font-size: 14px; color: #1a1a1a; line-height: 1.7; width: 100%; resize: vertical; min-height: 160px; font-family: inherit; outline: none; }
+
+    /* HISTORIAL */
+    .hist-card { background: #fff; border-radius: 16px; border: 1.5px solid #e0ddf8; padding: 16px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); cursor: pointer; transition: all 0.2s; }
+    .hist-card.recibido { border-color: #a5d6a7; background: #f0fff4; }
+    .hist-nombre { font-size: 16px; font-weight: 700; color: #1a237e; margin-bottom: 4px; }
+    .hist-equipos-preview { font-size: 12px; color: #888; margin-bottom: 8px; }
+    .hist-fecha { font-size: 11px; color: #aaa; }
+    .hist-card.borrador { border-color: #ce93d8; background: #fdf3ff; }
+    .flag-recibido { display: inline-block; padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 700; background: #e8f5e9; color: #2e7d32; border: 1px solid #a5d6a7; }
+
+    /* MODAL */
+    .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; display: flex; align-items: flex-end; justify-content: center; }
+    .modal-overlay.hidden { display: none; }
+    .modal-box { background: #fff; border-radius: 24px 24px 0 0; padding: 24px 18px 40px; width: 100%; max-width: 480px; max-height: 88vh; overflow-y: auto; }
+    .modal-close { float: right; background: none; border: none; font-size: 22px; color: #ccc; cursor: pointer; }
+    .modal-title { font-size: 18px; font-weight: 700; color: #1a237e; margin-bottom: 4px; }
+    .modal-sub { font-size: 12px; color: #999; margin-bottom: 16px; }
+
+    .numero-card { display: flex; align-items: center; gap: 10px; background: #f7f6ff; border-radius: 12px; border: 1.5px solid #e0ddf8; padding: 12px 14px; margin-bottom: 10px; }
+    .divider { border: none; border-top: 1px solid #eee; margin: 18px 0; }
+    .empty-msg { text-align: center; color: #ccc; font-size: 14px; padding: 30px 0; }
+    .loading { text-align: center; color: #aaa; font-size: 13px; padding: 20px; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: #1a237e; color: #fff; padding: 10px 22px; border-radius: 20px; font-size: 13px; font-weight: 600; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+    .toast.show { opacity: 1; }
+    .toast.error { background: #e53935; }
+
+    .rep-adicional-row { display:flex;gap:8px;align-items:center;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:8px 10px;margin-bottom:8px; }
+    .rep-adicional-row input[type="text"]   { flex:3;margin:0;background:transparent;border-color:#ffe082; }
+    .rep-adicional-row input[type="number"] { flex:1;margin:0;text-align:center;min-width:56px;background:transparent;border-color:#ffe082; }
+    .flag-pendiente { display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fce4ec;color:#880e4f;border:1px solid #f48fb1; }
+    .nombre-solicitud-wrap input { font-size: 16px; font-weight: 600; border-color: transparent; background: transparent; padding: 6px 4px; }
+    .nombre-solicitud-wrap input:focus { border-color: #1a237e; background: #fff; border-radius: 8px; }
+  </style>
+</head>
+<body>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('solicitud')">📋 Solicitud</button>
+    <button class="tab-btn"        onclick="switchTab('confirmar')">✅ Confirmar</button>
+    <button class="tab-btn"        onclick="switchTab('historial')">📦 Historial</button>
+    <button class="tab-btn"        onclick="switchTab('equipos')">⚙️ Equipos</button>
+    <button class="tab-btn"        onclick="switchTab('numeros')">📱 Números</button>
+  </div>
+
+  <!-- SOLICITUD -->
+  <div class="panel active" id="panel-solicitud">
+    <div class="app-frame">
+      <p class="app-title">Nueva solicitud</p>
+      <p class="app-sub">Agrega uno o varios equipos</p>
+
+      <!-- NOMBRE SOLICITUD -->
+      <div class="nombre-solicitud-wrap">
+        <p class="sub-label">Nombre de la solicitud</p>
+        <input type="text" id="inputNombreSolicitud" placeholder="Ej: Solicitud-1 (se genera automático)" />
+      </div>
+
+      <!-- CARRITO -->
+      <div id="carritoWrap" style="display:none;">
+        <p class="sub-label">Equipos agregados</p>
+        <div id="carritoLista"></div>
+        <hr class="divider" />
+      </div>
+
+      <!-- REPUESTOS ADICIONALES (libres, sin equipo) -->
+      <div id="repAdicionalWrap" style="margin-bottom:0;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+          <p class="sub-label" style="margin:0;">Repuestos adicionales</p>
+          <button onclick="addRepAdicional()" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:8px;background:#f0eeff;color:#1a237e;border:1.5px dashed #c5bff5;cursor:pointer;">+ Agregar</button>
+        </div>
+        <div id="repAdicionalLista"></div>
+      </div>
+
+      <button class="btn-primary" id="btnSolicitar" onclick="irAConfirmar()" style="display:none;background:#43a047;margin-bottom:16px;">
+        Solicitar → (<span id="contadorCarrito">0</span> equipos)
+      </button>
+
+      <p class="sub-label">Agregar equipo</p>
+      <div class="search-wrap">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="buscador" placeholder="Buscar equipo..." oninput="filtrarEquipos()" />
+      </div>
+      <div class="filtro-scroll">
+        <div class="filtro-chip active" data-filtro="todos" onclick="setFiltro('todos')">Todos</div>
+        <div class="filtro-chip motor"    data-filtro="motor"    onclick="setFiltro('motor')">⚡ Motor</div>
+        <div class="filtro-chip reductor" data-filtro="reductor" onclick="setFiltro('reductor')">⚙️ Reductor</div>
+      </div>
+      <div id="listaEquiposSelect"><p class="loading">Cargando equipos...</p></div>
+      <div id="paginacionEquipos" style="display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap;"></div>
+    </div>
+  </div>
+
+  <!-- CONFIRMAR -->
+  <div class="panel" id="panel-confirmar">
+    <div class="app-frame">
+      <p class="app-title">Confirmar solicitud</p>
+      <p class="app-sub">Revisa y envía por WhatsApp</p>
+      <div id="confirmDetalle"><p class="empty-msg">Prepara una solicitud primero</p></div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="panel" id="panel-historial">
+    <div class="app-frame">
+      <p class="app-title">Historial</p>
+      <p class="app-sub">Toca una solicitud para ver el detalle</p>
+      <div id="listaHistorial"><p class="loading">Cargando...</p></div>
+    </div>
+  </div>
+
+  <!-- EQUIPOS -->
+  <div class="panel" id="panel-equipos">
+    <div class="app-frame">
+      <p class="app-title">Equipos y repuestos</p>
+      <p class="app-sub">Administra tu catálogo</p>
+      <div id="formEquipo" style="display:none;">
+        <p class="sub-label" id="formTitulo">Nuevo equipo</p>
+        <p class="field-label" style="margin-top:8px;">Tipo de equipo</p>
+        <div class="tipo-selector" style="margin-bottom:14px;">
+          <button class="tipo-btn" id="tipoMotor"    onclick="selTipo('motor')">⚡ Motor</button>
+          <button class="tipo-btn" id="tipoReductor" onclick="selTipo('reductor')">⚙️ Reductor</button>
+        </div>
+        <p class="field-label">Referencia / Nombre</p>
+        <input type="text" id="inputNombre" placeholder="Ej: TR67 IEC 132" />
+        <p class="field-label">Repuestos</p>
+        <p style="font-size:11px;color:#aaa;margin-bottom:8px;">Nombre + cantidad de unidades por defecto</p>
+        <div id="repsFormLista"></div>
+        <button class="btn-add-rep" onclick="addRepForm()">+ Agregar repuesto</button>
+        <div style="display:flex;gap:8px;margin-top:4px;">
+          <button class="btn-secondary" onclick="cancelarForm()" style="flex:1;">Cancelar</button>
+          <button class="btn-primary" onclick="guardarEquipo()" style="flex:2;margin-top:0;" id="btnGuardar">Guardar</button>
+        </div>
+      </div>
+      <button class="btn-primary" id="btnNuevoEquipo" onclick="mostrarForm()" style="margin-bottom:16px;">+ Nuevo equipo</button>
+      <div id="listaEquipos"><p class="loading">Cargando...</p></div>
+    </div>
+  </div>
+
+  <!-- NÚMEROS -->
+  <div class="panel" id="panel-numeros">
+    <div class="app-frame">
+      <p class="app-title">Números de WhatsApp</p>
+      <p class="app-sub">Máximo 3 números</p>
+      <div id="formNumero" style="display:none;">
+        <p class="field-label">Nombre del contacto</p>
+        <input type="text" id="inputNombreNum" placeholder="Ej: Proveedor principal" />
+        <p class="field-label">Número (+57...)</p>
+        <input type="tel" id="inputTelNum" placeholder="+573001234567" />
+        <div style="display:flex;gap:8px;margin-top:14px;">
+          <button class="btn-secondary" onclick="cancelarFormNum()" style="flex:1;">Cancelar</button>
+          <button class="btn-primary" onclick="guardarNumero()" style="flex:2;margin-top:0;">Guardar</button>
+        </div>
+        <hr class="divider" />
+      </div>
+      <button class="btn-primary" id="btnNuevoNumero" onclick="mostrarFormNum()" style="margin-bottom:16px;">+ Agregar número</button>
+      <div id="listaNumeros"><p class="loading">Cargando...</p></div>
+    </div>
+  </div>
+
+  <!-- MODAL HISTORIAL -->
+  <div class="modal-overlay hidden" id="modalOverlay" onclick="cerrarModal(event)">
+    <div class="modal-box">
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+      <p class="modal-title" id="modalTitulo"></p>
+      <p class="modal-sub"   id="modalSub"></p>
+      <div id="modalContenido"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, serverTimestamp, getCountFromServer }
+      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBkq0rH7AGm9aIroUbd1qgKeKg_iDdpJ1c",
+      authDomain: "repuestos-app-1825a.firebaseapp.com",
+      projectId: "repuestos-app-1825a",
+      storageBucket: "repuestos-app-1825a.firebasestorage.app",
+      messagingSenderId: "261309116863",
+      appId: "1:261309116863:web:7d4735af14c69849a1b10a"
+    };
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
+
+    // ── STATE ──
+    let equipos=[], numeros=[], historial=[];
+    let tipoSeleccionado=null, equipoEditandoId=null;
+    let filtroActivo='todos', busqueda='', paginaActual=0;
+    const EQUIPOS_POR_PAGINA=5;
+    // carrito: [{equipoId, equipoNombre, equipoTipo, repuestos:[{nombre,und,removido}]}]
+    let carrito=[];
+    let repAdicionales=[]; // [{nombre, und}]
+    let solicitudParaConfirmar=null;
+
+    // ── TOAST ──
+    function toast(msg,error=false){
+      const t=document.getElementById('toast');
+      t.textContent=msg; t.className='toast show'+(error?' error':'');
+      setTimeout(()=>t.className='toast',2200);
+    }
+
+    // ── TABS ──
+    window.switchTab=function(tab){
+      ['solicitud','confirmar','historial','equipos','numeros'].forEach((p,i)=>{
+        document.getElementById('panel-'+p).classList.toggle('active',p===tab);
+        document.querySelectorAll('.tab-btn')[i].classList.toggle('active',p===tab);
+      });
+      if(tab==='historial') renderHistorial();
+      if(tab==='confirmar') renderConfirmar();
+      if(tab==='numeros')   renderNumeros();
+    }
+
+    // ── FIRESTORE ──
+    onSnapshot(collection(db,'equipos'),snap=>{
+      equipos=snap.docs.map(d=>({id:d.id,...d.data()}));
+      equipos.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+      renderEquipos(); renderListaSelect();
+    });
+    onSnapshot(collection(db,'numeros'),snap=>{
+      numeros=snap.docs.map(d=>({id:d.id,...d.data()}));
+      renderNumeros();
+    });
+    onSnapshot(collection(db,'historial'),snap=>{
+      historial=snap.docs.map(d=>({id:d.id,...d.data()}));
+      historial.sort((a,b)=>(b.fecha?.seconds||0)-(a.fecha?.seconds||0));
+      renderHistorial();
+    });
+
+    // ── HELPERS ──
+    function badgeHTML(tipo){
+      const l={motor:'⚡ Motor',reductor:'⚙️ Reductor'};
+      return `<span class="badge ${tipo}">${l[tipo]||tipo}</span>`;
+    }
+    function formatFecha(ts){
+      if(!ts) return '—';
+      const d=ts.toDate?ts.toDate():new Date(ts.seconds*1000);
+      return d.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    }
+    async function getSolicitudNum(){
+      try{
+        const snap=await getCountFromServer(collection(db,'historial'));
+        return snap.data().count+1;
+      }catch(e){return Date.now();}
+    }
+
+    window.addRepAdicional=function(){
+      repAdicionales.push({nombre:'',und:1});
+      renderRepAdicionales();
+      actualizarBtnSolicitar();
+    }
+    window.removeRepAdicional=function(i){
+      repAdicionales.splice(i,1);
+      renderRepAdicionales();
+      actualizarBtnSolicitar();
+    }
+    window.updateRepAdicional=function(i,campo,val){
+      repAdicionales[i][campo]=campo==='und'?Math.max(1,parseInt(val)||1):val;
+      actualizarBtnSolicitar();
+    }
+    function renderRepAdicionales(){
+      const lista=document.getElementById('repAdicionalLista');
+      if(!lista) return;
+      if(repAdicionales.length===0){lista.innerHTML='';return;}
+      lista.innerHTML=repAdicionales.map((r,i)=>`
+        <div class="rep-adicional-row">
+          <input type="text" placeholder="Nombre del repuesto" value="${r.nombre}" oninput="updateRepAdicional(${i},'nombre',this.value)" />
+          <input type="number" min="1" value="${r.und}" style="width:60px;" oninput="updateRepAdicional(${i},'und',this.value)" />
+          <button class="btn-quitar-rep" onclick="removeRepAdicional(${i})">✕</button>
+        </div>`).join('');
+    }
+    function actualizarBtnSolicitar(){
+      const btn=document.getElementById('btnSolicitar');
+      const hay=carrito.length>0||repAdicionales.some(r=>r.nombre.trim());
+      btn.style.display=hay?'block':'none';
+      document.getElementById('contadorCarrito').textContent=carrito.length;
+    }
+
+    // ── SOLICITUD ──
+    window.setFiltro=function(f){
+      filtroActivo=f; paginaActual=0;
+      document.querySelectorAll('.filtro-chip').forEach(c=>c.classList.toggle('active',c.dataset.filtro===f));
+      renderListaSelect();
+    }
+    window.filtrarEquipos=function(){
+      busqueda=document.getElementById('buscador').value.toLowerCase();
+      paginaActual=0;
+      renderListaSelect();
+    }
+
+    function renderListaSelect(){
+      const lista=document.getElementById('listaEquiposSelect');
+      const paginacion=document.getElementById('paginacionEquipos');
+      let filtrados=equipos;
+      if(filtroActivo!=='todos') filtrados=filtrados.filter(e=>e.tipo===filtroActivo);
+      if(busqueda) filtrados=filtrados.filter(e=>e.nombre.toLowerCase().includes(busqueda));
+      if(filtrados.length===0){lista.innerHTML='<p class="empty-msg">Sin resultados</p>';paginacion.innerHTML='';return;}
+      const totalPaginas=Math.ceil(filtrados.length/EQUIPOS_POR_PAGINA);
+      if(paginaActual>=totalPaginas) paginaActual=0;
+      const inicio=paginaActual*EQUIPOS_POR_PAGINA;
+      const pagina=filtrados.slice(inicio,inicio+EQUIPOS_POR_PAGINA);
+      const enCarrito=new Set(carrito.map(c=>c.equipoId));
+      lista.innerHTML=pagina.map(eq=>`
+        <div class="equipo-select-card ${enCarrito.has(eq.id)?'agregado':''}" onclick="toggleCarrito('${eq.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <p class="equipo-select-nombre">${eq.nombre}</p>
+            <span style="font-size:18px;">${enCarrito.has(eq.id)?'✅':''}</span>
+          </div>
+          ${badgeHTML(eq.tipo)}
+        </div>`).join('');
+      // Paginación numérica
+      if(totalPaginas<=1){paginacion.innerHTML='';return;}
+      let btns='';
+      for(let i=0;i<totalPaginas;i++){
+        const activo=i===paginaActual;
+        btns+=`<button onclick="irPagina(${i})" style="width:34px;height:34px;border-radius:10px;border:1.5px solid ${activo?'#1a237e':'#e0ddf8'};background:${activo?'#1a237e':'#f7f6ff'};color:${activo?'#fff':'#1a237e'};font-weight:700;font-size:13px;cursor:pointer;">${i+1}</button>`;
+      }
+      paginacion.innerHTML=btns;
+    }
+    window.irPagina=function(p){paginaActual=p;renderListaSelect();}
+
+    window.toggleCarrito=function(id){
+      const idx=carrito.findIndex(c=>c.equipoId===id);
+      if(idx>=0){
+        carrito.splice(idx,1);
+        toast('Equipo removido del carrito');
+      } else {
+        const eq=equipos.find(e=>e.id===id);
+        carrito.push({
+          equipoId:eq.id, equipoNombre:eq.nombre, equipoTipo:eq.tipo,
+          repuestos:(eq.repuestos||[]).map(r=>({nombre:r.nombre,und:r.und||1,removido:false}))
+        });
+        toast('✓ Equipo agregado');
+      }
+      renderListaSelect();
+      renderCarrito();
+    }
+
+    function renderCarrito(){
+      const wrap=document.getElementById('carritoWrap');
+      const lista=document.getElementById('carritoLista');
+      const btnSolicitar=document.getElementById('btnSolicitar');
+      const contador=document.getElementById('contadorCarrito');
+      if(carrito.length===0){
+        wrap.style.display='none'; actualizarBtnSolicitar(); return;
+      }
+      wrap.style.display='block'; actualizarBtnSolicitar();
+      lista.innerHTML=carrito.map((item,ci)=>`
+        <div class="carrito-equipo">
+          <div class="carrito-equipo-header">
+            <div>
+              <p class="carrito-equipo-nombre">${item.equipoNombre}</p>
+              <div style="margin-top:3px;">${badgeHTML(item.equipoTipo)}</div>
+            </div>
+            <button class="btn-danger" onclick="toggleCarrito('${item.equipoId}')">✕</button>
+          </div>
+          ${item.repuestos.map((r,ri)=>`
+            <div class="rep-ajuste-row ${r.removido?'removido':''}" id="crow-${ci}-${ri}">
+              <span class="rep-ajuste-nombre">${r.nombre}</span>
+              ${r.removido
+                ? `<button class="btn-restore-rep" onclick="restoreCarritoRep(${ci},${ri})">Restaurar</button>`
+                : `<div class="qty-control">
+                    <button class="qty-btn" onclick="cambiarQtyCarrito(${ci},${ri},-1)">−</button>
+                    <span class="qty-val" id="cqty-${ci}-${ri}">${r.und}</span>
+                    <button class="qty-btn" onclick="cambiarQtyCarrito(${ci},${ri},1)">+</button>
+                  </div>
+                  <button class="btn-remove-rep" onclick="removeCarritoRep(${ci},${ri})" title="Ya tengo este">✕</button>`
+              }
+            </div>`).join('')}
+        </div>`).join('');
+    }
+
+    window.cambiarQtyCarrito=function(ci,ri,delta){
+      carrito[ci].repuestos[ri].und=Math.max(1,(carrito[ci].repuestos[ri].und||1)+delta);
+      document.getElementById('cqty-'+ci+'-'+ri).textContent=carrito[ci].repuestos[ri].und;
+    }
+    window.removeCarritoRep=function(ci,ri){
+      carrito[ci].repuestos[ri].removido=true; renderCarrito();
+    }
+    window.restoreCarritoRep=function(ci,ri){
+      carrito[ci].repuestos[ri].removido=false; renderCarrito();
+    }
+
+    window.irAConfirmar=async function(){
+      const repAdValidos=repAdicionales.filter(r=>r.nombre.trim());
+      const hayCarrito=carrito.length>0;
+      const hayAdicionales=repAdValidos.length>0;
+      if(!hayCarrito && !hayAdicionales){toast('Agrega al menos un equipo o repuesto',true);return;}
+      if(hayCarrito){
+        const todosRemovidos=carrito.every(item=>item.repuestos.every(r=>r.removido));
+        if(todosRemovidos && !hayAdicionales){toast('Selecciona al menos un repuesto',true);return;}
+      }
+      let nombre=document.getElementById('inputNombreSolicitud').value.trim();
+      if(!nombre){
+        const num=await getSolicitudNum();
+        nombre='Solicitud-'+num;
+        document.getElementById('inputNombreSolicitud').value=nombre;
+      }
+      // Incluir repuestos adicionales como un ítem especial si los hay
+      const itemsCompletos=JSON.parse(JSON.stringify(carrito));
+      if(repAdValidos.length>0){
+        itemsCompletos.push({
+          equipoId:'__adicionales__',
+          equipoNombre:'Adicionales',
+          equipoTipo:'',
+          repuestos:repAdValidos.map(r=>({nombre:r.nombre,und:r.und,removido:false}))
+        });
+      }
+      solicitudParaConfirmar={nombre, items:itemsCompletos};
+      switchTab('confirmar');
+    }
+
+    // ── CONFIRMAR ──
+    function renderConfirmar(){
+      const div=document.getElementById('confirmDetalle');
+      if(!solicitudParaConfirmar){div.innerHTML='<p class="empty-msg">Prepara una solicitud primero</p>';return;}
+      const {nombre,items}=solicitudParaConfirmar;
+
+      // Construir mensaje (solo repuestos, sin separación por equipo)
+      let msgLineas=`Por favor enviar los siguientes repuestos:\n`;
+      items.forEach(item=>{
+        const reps=item.repuestos.filter(r=>!r.removido);
+        reps.forEach(r=>{ msgLineas+=`• ${r.nombre} x ${r.und} und\n`; });
+      });
+      msgLineas+=`\nQuedamos atentos a su confirmación. Muchas gracias.`;
+
+      div.innerHTML=`
+        <div style="background:#f7f6ff;border-radius:14px;border:1.5px solid #e0ddf8;padding:14px;margin-bottom:16px;">
+          <p class="sub-label">Nombre de la solicitud</p>
+          <p style="font-size:17px;font-weight:700;color:#1a237e;">${nombre}</p>
+        </div>
+
+        <p class="sub-label">Resumen de repuestos</p>
+        ${items.map(item=>{
+          const reps=item.repuestos.filter(r=>!r.removido);
+          if(reps.length===0) return '';
+          const esAdicional=item.equipoId==='__adicionales__';
+          return `<div class="confirm-bloque" ${esAdicional?'style="background:#fff8e1;border-color:#ffe082;"':''}>
+            <div class="confirm-bloque-titulo">${esAdicional?'➕ Repuestos adicionales':item.equipoNombre+' '+badgeHTML(item.equipoTipo)}</div>
+            ${reps.map(r=>`
+              <div class="confirm-rep-row">
+                <span>${r.nombre}</span>
+                <span class="confirm-rep-und">x ${r.und} und</span>
+              </div>`).join('')}
+          </div>`;
+        }).join('')}
+
+        <hr class="divider" />
+        <p class="sub-label">Mensaje editable</p>
+        <textarea class="msg-editable" id="msgFinal">${msgLineas}</textarea>
+
+        <hr class="divider" />
+        <p class="sub-label">Enviar a</p>
+        ${numeros.length===0
+          ? '<p style="font-size:12px;color:#aaa;margin-bottom:12px;">Agrega números en la pestaña 📱</p>'
+          : `<div id="numSelectorWrap">
+              ${numeros.map((n,ni)=>`
+                <div class="num-selector-card" id="ncard-${ni}" onclick="seleccionarNumero(${ni})" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1.5px solid #e0ddf8;background:#f7f6ff;margin-bottom:8px;cursor:pointer;transition:all 0.2s;">
+                  <div style="width:20px;height:20px;border-radius:50%;border:2px solid #c5bff5;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="nradio-${ni}"></div>
+                  <div style="flex:1;">
+                    <p style="font-size:13px;font-weight:700;color:#1a237e;">${n.nombre}</p>
+                    <p style="font-size:12px;color:#666;">${n.tel}</p>
+                  </div>
+                </div>`).join('')}
+              <button class="btn-primary" id="btnEnviarWa" onclick="enviarWhatsAppSeleccionado()" style="margin-top:4px;background:#25d366;" disabled>
+                📲 Enviar por WhatsApp
+              </button>
+            </div>`}
+
+        <button class="btn-primary" onclick="guardarSolicitud('borrador')" style="background:#6a1b9a;margin-top:10px;">
+          🗂️ Guardar como borrador
+        </button>
+        <button class="btn-secondary" onclick="nuevaSolicitud()" style="width:100%;margin-top:10px;text-align:center;">
+          + Nueva solicitud
+        </button>`;
+    }
+
+    let numSeleccionado=-1;
+    window.seleccionarNumero=function(ni){
+      numSeleccionado=ni;
+      numeros.forEach((_,i)=>{
+        const card=document.getElementById('ncard-'+i);
+        const radio=document.getElementById('nradio-'+i);
+        if(!card||!radio) return;
+        if(i===ni){
+          card.style.borderColor='#1a237e'; card.style.background='#e8eaf6';
+          radio.style.background='#1a237e'; radio.style.borderColor='#1a237e';
+          radio.innerHTML='<div style="width:8px;height:8px;border-radius:50%;background:#fff;"></div>';
+        } else {
+          card.style.borderColor='#e0ddf8'; card.style.background='#f7f6ff';
+          radio.style.background='#fff'; radio.style.borderColor='#c5bff5';
+          radio.innerHTML='';
+        }
+      });
+      const btn=document.getElementById('btnEnviarWa');
+      if(btn) btn.disabled=false;
+    }
+    window.enviarWhatsAppSeleccionado=function(){
+      if(numSeleccionado<0||!numeros[numSeleccionado]){toast('Selecciona un número',true);return;}
+      enviarWhatsApp(numeros[numSeleccionado].tel);
+    }
+
+    window.enviarWhatsApp=async function(tel){
+      const msg=document.getElementById('msgFinal')?.value?.trim();
+      if(!msg){toast('Sin mensaje',true);return;}
+      if(solicitudParaConfirmar){
+        const {nombre,items}=solicitudParaConfirmar;
+        try{
+          await addDoc(collection(db,'historial'),{nombre,items,fecha:serverTimestamp(),estado:'espera'});
+          toast('✓ Enviado y guardado');
+          solicitudParaConfirmar=null; carrito=[]; repAdicionales=[]; numSeleccionado=-1;
+          document.getElementById('inputNombreSolicitud').value='';
+          renderCarrito(); renderListaSelect(); renderRepAdicionales(); actualizarBtnSolicitar();
+          switchTab('historial');
+        }catch(e){toast('Enviando...');}
+      }
+      window.open(`https://wa.me/${tel.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`,'_blank');
+    }
+
+    window.guardarSolicitud=async function(estado='espera'){
+      if(!solicitudParaConfirmar) return;
+      const {nombre,items}=solicitudParaConfirmar;
+      try{
+        await addDoc(collection(db,'historial'),{nombre,items,fecha:serverTimestamp(),estado});
+        toast(estado==='borrador'?'🗂️ Guardado como borrador':'✓ Solicitud guardada');
+        solicitudParaConfirmar=null; carrito=[]; repAdicionales=[];
+        document.getElementById('inputNombreSolicitud').value='';
+        renderCarrito(); renderListaSelect(); renderRepAdicionales(); actualizarBtnSolicitar();
+        switchTab('historial');
+      }catch(e){toast('Error al guardar',true);}
+    }
+
+    window.nuevaSolicitud=function(){
+      carrito=[]; repAdicionales=[]; solicitudParaConfirmar=null;
+      document.getElementById('inputNombreSolicitud').value='';
+      renderCarrito(); renderListaSelect(); renderRepAdicionales(); actualizarBtnSolicitar();
+      switchTab('solicitud');
+    }
+
+    // ── HISTORIAL ──
+    function renderHistorial(){
+      const lista=document.getElementById('listaHistorial');
+      if(!lista) return;
+      if(historial.length===0){lista.innerHTML='<p class="empty-msg">Sin solicitudes aún</p>';return;}
+      lista.innerHTML=historial.map(h=>{
+        const equiposPreview=(h.items||[]).filter(i=>i.equipoId!=='__adicionales__').map(i=>i.equipoNombre).join(', ')
+          || (h.items||[]).find(i=>i.equipoId==='__adicionales__')?'Solo repuestos adicionales':'';
+        let flagHTML='';
+        if(h.estado==='recibido')  flagHTML='<span class="flag-recibido">✅ Recibido</span>';
+        else if(h.estado==='borrador') flagHTML='<span class="flag-pendiente">📋 Sin pedir</span>';
+        else flagHTML='<span class="flag-espera">⏳ Espera</span>';
+        return `<div class="hist-card ${h.estado==='recibido'?'recibido':h.estado==='borrador'?'borrador':''}" onclick="abrirModal('${h.id}')">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
+            <div style="flex:1;">
+              <p class="hist-nombre">${h.nombre||'Sin nombre'}</p>
+              <p class="hist-equipos-preview">${equiposPreview}</p>
+              <p class="hist-fecha">Creado: ${formatFecha(h.fecha)}</p>
+              ${h.estado==='recibido'&&h.fechaRecibido?`<p class="hist-fecha" style="color:#2e7d32;">Recibido: ${formatFecha(h.fechaRecibido)}</p>`:''}
+            </div>
+            <div>${flagHTML}</div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    window.abrirModal=function(id){
+      const h=historial.find(x=>x.id===id);
+      if(!h) return;
+      document.getElementById('modalTitulo').textContent=h.nombre||'Sin nombre';
+      document.getElementById('modalSub').textContent=formatFecha(h.fecha);
+
+      // Construir mensaje para borradores
+      let msgBorrador=`Por favor enviar los siguientes repuestos:\n`;
+      (h.items||[]).forEach(item=>{
+        const reps=(item.repuestos||[]).filter(r=>!r.removido);
+        reps.forEach(r=>{ msgBorrador+=`• ${r.nombre} x ${r.und} und\n`; });
+      });
+      msgBorrador+=`\nQuedamos atentos a su confirmación. Muchas gracias.`;
+
+      const esBorrador=h.estado==='borrador';
+
+      document.getElementById('modalContenido').innerHTML=`
+        ${(h.items||[]).map(item=>{
+          const reps=(item.repuestos||[]).filter(r=>!r.removido);
+          if(reps.length===0) return '';
+          const esAdicional=item.equipoId==='__adicionales__';
+          return `<div class="confirm-bloque" style="margin-bottom:12px;${esAdicional?'background:#fff8e1;border-color:#ffe082;':''}">
+            <div class="confirm-bloque-titulo">${esAdicional?'➕ Repuestos adicionales':item.equipoNombre+' '+badgeHTML(item.equipoTipo)}</div>
+            ${reps.map(r=>`
+              <div class="confirm-rep-row">
+                <span>${r.nombre}</span>
+                <span class="confirm-rep-und">x ${r.und} und</span>
+              </div>`).join('')}
+          </div>`;
+        }).join('')}
+
+        ${esBorrador && numeros.length>0?`
+          <hr class="divider" />
+          <p class="sub-label">📋 Sin pedir — Enviar ahora</p>
+          <textarea class="msg-editable" id="msgBorradorEdit" style="margin-bottom:14px;">${msgBorrador}</textarea>
+          ${numeros.map((n,ni)=>`
+            <div class="num-selector-card" id="bncard-${ni}" onclick="seleccionarNumeroB(${ni})" style="display:flex;align-items:center;gap:10px;padding:12px 14px;border-radius:12px;border:1.5px solid #e0ddf8;background:#f7f6ff;margin-bottom:8px;cursor:pointer;transition:all 0.2s;">
+              <div style="width:20px;height:20px;border-radius:50%;border:2px solid #c5bff5;background:#fff;flex-shrink:0;display:flex;align-items:center;justify-content:center;" id="bnradio-${ni}"></div>
+              <div style="flex:1;">
+                <p style="font-size:13px;font-weight:700;color:#1a237e;">${n.nombre}</p>
+                <p style="font-size:12px;color:#666;">${n.tel}</p>
+              </div>
+            </div>`).join('')}
+          <button class="btn-primary" id="btnEnviarBorrador" onclick="enviarDesdeHistorial('${h.id}')" style="margin-bottom:4px;background:#25d366;" disabled>
+            📲 Enviar por WhatsApp
+          </button>
+        `:''}
+
+        <hr class="divider" />
+        <p class="sub-label">Editar nombre</p>
+        <input type="text" id="editNombreHist" value="${h.nombre||''}" style="margin-bottom:10px;" />
+        <button class="btn-secondary" style="width:100%;text-align:center;margin-bottom:14px;" onclick="editarNombre('${h.id}')">
+          💾 Guardar nombre
+        </button>
+        <p class="sub-label">Estado</p>
+        <div style="margin-top:8px;">
+          ${h.estado==='recibido'
+            ? `<div style="background:#e8f5e9;border-radius:12px;border:1.5px solid #a5d6a7;padding:12px;margin-bottom:10px;">
+                <p style="font-size:13px;font-weight:700;color:#2e7d32;margin-bottom:4px;">✅ Recibido</p>
+                ${h.fechaRecibido?`<p style="font-size:11px;color:#666;">Recibido el: ${formatFecha(h.fechaRecibido)}</p>`:''}
+               </div>
+               <button class="btn-primary" style="background:#e65100;margin-top:0;width:100%;"
+                 onclick="devolverAEspera('${h.id}')">⏳ Devolver a espera</button>`
+            : h.estado==='espera'
+              ? `<div style="display:flex;gap:8px;">
+                   <button class="btn-primary" style="background:#e65100;margin-top:0;flex:1;" disabled>⏳ A la espera</button>
+                   <button class="btn-primary" style="background:#43a047;margin-top:0;flex:1;" onclick="marcarRecibido('${h.id}')">✅ Recibido</button>
+                 </div>`
+              : `<div style="display:flex;gap:8px;">
+                   <button class="btn-primary" style="background:#6a1b9a;margin-top:0;flex:1;" disabled>📋 Sin pedir</button>
+                   <button class="btn-primary" style="background:#bbb;margin-top:0;flex:1;" disabled>⏳ A la espera</button>
+                   <button class="btn-primary" style="background:#bbb;margin-top:0;flex:1;" disabled>✅ Recibido</button>
+                 </div>
+                 <p style="font-size:11px;color:#aaa;margin-top:6px;text-align:center;">Envía la solicitud para avanzar el estado</p>`
+          }
+        </div>
+        <button class="btn-danger" style="width:100%;margin-top:12px;padding:10px;" onclick="eliminarSolicitud('${h.id}')">
+          Eliminar solicitud
+        </button>`;
+      document.getElementById('modalOverlay').classList.remove('hidden');
+    }
+
+    let numSeleccionadoB=-1;
+    window.seleccionarNumeroB=function(ni){
+      numSeleccionadoB=ni;
+      numeros.forEach((_,i)=>{
+        const card=document.getElementById('bncard-'+i);
+        const radio=document.getElementById('bnradio-'+i);
+        if(!card||!radio) return;
+        if(i===ni){
+          card.style.borderColor='#1a237e'; card.style.background='#e8eaf6';
+          radio.style.background='#1a237e'; radio.style.borderColor='#1a237e';
+          radio.innerHTML='<div style="width:8px;height:8px;border-radius:50%;background:#fff;"></div>';
+        } else {
+          card.style.borderColor='#e0ddf8'; card.style.background='#f7f6ff';
+          radio.style.background='#fff'; radio.style.borderColor='#c5bff5';
+          radio.innerHTML='';
+        }
+      });
+      const btn=document.getElementById('btnEnviarBorrador');
+      if(btn) btn.disabled=false;
+    }
+
+    window.enviarDesdeHistorial=async function(id){
+      if(numSeleccionadoB<0||!numeros[numSeleccionadoB]){toast('Selecciona un número',true);return;}
+      const tel=numeros[numSeleccionadoB].tel;
+      const msg=document.getElementById('msgBorradorEdit')?.value?.trim();
+      if(!msg){toast('Sin mensaje',true);return;}
+      await updateDoc(doc(db,'historial',id),{estado:'espera'});
+      toast('✓ Enviado — marcado en espera');
+      numSeleccionadoB=-1;
+      document.getElementById('modalOverlay').classList.add('hidden');
+      window.open(`https://wa.me/${tel.replace(/\D/g,'')}?text=${encodeURIComponent(msg)}`,'_blank');
+    }
+
+    window.marcarRecibido=async function(id){
+      if(!confirm('¿Confirmar que el pedido fue recibido?')) return;
+      await updateDoc(doc(db,'historial',id),{estado:'recibido', fechaRecibido:serverTimestamp()});
+      toast('✅ Marcado como recibido');
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+
+    window.devolverAEspera=async function(id){
+      if(!confirm('¿Seguro? Si ya llegó debería quedarse como recibido.')) return;
+      await updateDoc(doc(db,'historial',id),{estado:'espera', fechaRecibido:null});
+      toast('⏳ Devuelto a espera');
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+
+    window.editarNombre=async function(id){
+      const nombre=document.getElementById('editNombreHist').value.trim();
+      if(!nombre){toast('Escribe un nombre',true);return;}
+      await updateDoc(doc(db,'historial',id),{nombre});
+      toast('✓ Nombre actualizado');
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+
+    window.cerrarModal=function(e){
+      if(!e||e.target===document.getElementById('modalOverlay'))
+        document.getElementById('modalOverlay').classList.add('hidden');
+    }
+    window.eliminarSolicitud=async function(id){
+      if(!confirm('¿Eliminar esta solicitud?')) return;
+      await deleteDoc(doc(db,'historial',id));
+      toast('✓ Eliminada');
+      document.getElementById('modalOverlay').classList.add('hidden');
+    }
+
+    // ── EQUIPOS ──
+    window.selTipo=function(tipo){
+      tipoSeleccionado=tipo;
+      ['Motor','Reductor'].forEach(t=>
+        document.getElementById('tipo'+t).className='tipo-btn'+(t.toLowerCase()===tipo?' '+tipo:''));
+    }
+    window.addRepForm=function(){
+      const lista=document.getElementById('repsFormLista');
+      const row=document.createElement('div');
+      row.className='rep-form-row';
+      row.innerHTML=`
+        <input type="text" placeholder="Nombre del repuesto" />
+        <input type="number" min="1" value="1" style="width:70px;" />
+        <button class="btn-quitar-rep" onclick="this.parentElement.remove()">✕</button>`;
+      lista.appendChild(row);
+    }
+    window.mostrarForm=function(id=null){
+      document.getElementById('formEquipo').style.display='block';
+      document.getElementById('btnNuevoEquipo').style.display='none';
+      equipoEditandoId=id;
+      const lista=document.getElementById('repsFormLista');
+      lista.innerHTML='';
+      if(id){
+        const eq=equipos.find(e=>e.id===id);
+        document.getElementById('formTitulo').textContent='Editar equipo';
+        document.getElementById('inputNombre').value=eq.nombre;
+        selTipo(eq.tipo);
+        document.getElementById('btnGuardar').textContent='Actualizar';
+        (eq.repuestos||[]).forEach(r=>{
+          const row=document.createElement('div');
+          row.className='rep-form-row';
+          row.innerHTML=`
+            <input type="text" value="${r.nombre}" />
+            <input type="number" min="1" value="${r.und||1}" style="width:70px;" />
+            <button class="btn-quitar-rep" onclick="this.parentElement.remove()">✕</button>`;
+          lista.appendChild(row);
+        });
+      } else {
+        document.getElementById('formTitulo').textContent='Nuevo equipo';
+        document.getElementById('inputNombre').value='';
+        document.getElementById('btnGuardar').textContent='Guardar';
+        tipoSeleccionado=null;
+        ['Motor','Reductor'].forEach(t=>document.getElementById('tipo'+t).className='tipo-btn');
+        addRepForm();
+      }
+    }
+    window.cancelarForm=function(){
+      document.getElementById('formEquipo').style.display='none';
+      document.getElementById('btnNuevoEquipo').style.display='block';
+      equipoEditandoId=null;
+    }
+    window.guardarEquipo=async function(){
+      const nombre=document.getElementById('inputNombre').value.trim();
+      if(!nombre){toast('Escribe el nombre',true);return;}
+      if(!tipoSeleccionado){toast('Selecciona el tipo',true);return;}
+      const rows=document.querySelectorAll('#repsFormLista .rep-form-row');
+      const repuestos=[];
+      rows.forEach(row=>{
+        const n=row.querySelector('input[type="text"]').value.trim();
+        const u=parseInt(row.querySelector('input[type="number"]').value)||1;
+        if(n) repuestos.push({nombre:n,und:u});
+      });
+      if(repuestos.length===0){toast('Agrega al menos un repuesto',true);return;}
+      try{
+        const btn=document.getElementById('btnGuardar');
+        btn.disabled=true; btn.textContent='Guardando...';
+        if(equipoEditandoId){
+          await updateDoc(doc(db,'equipos',equipoEditandoId),{nombre,tipo:tipoSeleccionado,repuestos});
+          toast('✓ Actualizado');
+        } else {
+          await addDoc(collection(db,'equipos'),{nombre,tipo:tipoSeleccionado,repuestos});
+          toast('✓ Guardado');
+        }
+        cancelarForm();
+      }catch(e){toast('Error',true);}
+      finally{
+        const btn=document.getElementById('btnGuardar');
+        btn.disabled=false; btn.textContent=equipoEditandoId?'Actualizar':'Guardar';
+      }
+    }
+    window.eliminarEquipo=async function(id){
+      if(!confirm('¿Eliminar este equipo?')) return;
+      await deleteDoc(doc(db,'equipos',id));
+      toast('✓ Eliminado');
+    }
+    function renderEquipos(){
+      const lista=document.getElementById('listaEquipos');
+      if(!lista) return;
+      if(equipos.length===0){lista.innerHTML='<p class="empty-msg">No hay equipos aún</p>';return;}
+      lista.innerHTML=equipos.map(eq=>`
+        <div class="equipo-card">
+          <div class="equipo-header">
+            <div>
+              <p class="equipo-nombre">${eq.nombre}</p>
+              <div style="margin-top:4px;">${badgeHTML(eq.tipo)}</div>
+            </div>
+            <div class="equipo-acciones">
+              <button class="btn-secondary" onclick="mostrarForm('${eq.id}')">✏️</button>
+              <button class="btn-danger"    onclick="eliminarEquipo('${eq.id}')">✕</button>
+            </div>
+          </div>
+          ${(eq.repuestos||[]).map(r=>`
+            <div class="repuesto-item">
+              <span>• ${r.nombre}</span>
+              <span class="repuesto-und">x ${r.und||1} und</span>
+            </div>`).join('')}
+        </div>`).join('');
+    }
+
+    // ── NÚMEROS ──
+    window.mostrarFormNum=function(){
+      if(numeros.length>=3){toast('Máximo 3 números',true);return;}
+      document.getElementById('formNumero').style.display='block';
+      document.getElementById('btnNuevoNumero').style.display='none';
+      document.getElementById('inputNombreNum').value='';
+      document.getElementById('inputTelNum').value='+57';
+    }
+    window.cancelarFormNum=function(){
+      document.getElementById('formNumero').style.display='none';
+      document.getElementById('btnNuevoNumero').style.display='block';
+    }
+    window.guardarNumero=async function(){
+      const nombre=document.getElementById('inputNombreNum').value.trim();
+      const tel=document.getElementById('inputTelNum').value.trim();
+      if(!nombre){toast('Escribe el nombre',true);return;}
+      if(!tel||tel==='+57'){toast('Escribe el número',true);return;}
+      await addDoc(collection(db,'numeros'),{nombre,tel});
+      toast('✓ Guardado'); cancelarFormNum();
+    }
+    window.eliminarNumero=async function(id){
+      if(!confirm('¿Eliminar?')) return;
+      await deleteDoc(doc(db,'numeros',id));
+      toast('✓ Eliminado');
+    }
+    function renderNumeros(){
+      const lista=document.getElementById('listaNumeros');
+      if(!lista) return;
+      if(numeros.length===0){lista.innerHTML='<p class="empty-msg">No hay números aún</p>';return;}
+      lista.innerHTML=numeros.map(n=>`
+        <div class="numero-card">
+          <div style="flex:1;">
+            <p style="font-size:14px;font-weight:700;color:#1a237e;">${n.nombre}</p>
+            <p style="font-size:13px;color:#666;">${n.tel}</p>
+          </div>
+          <button class="btn-danger" onclick="eliminarNumero('${n.id}')">✕</button>
+        </div>`).join('');
+      document.getElementById('btnNuevoNumero').style.display=numeros.length>=3?'none':'block';
+    }
+  </script>
+</body>
+</html>
