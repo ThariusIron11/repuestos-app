@@ -248,15 +248,11 @@
         <!-- Speedi Sleeve (solo Reductor) -->
         <div id="speediSection" style="display:none;margin-bottom:12px;">
           <div style="background:#fff3e0;border-radius:12px;border:1.5px solid #ffb74d;padding:12px;">
-            <p style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px;">🔶 Speedi Sleeve (solo Reductores)</p>
-            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
-              <input type="checkbox" id="chkSpeediBaja" style="width:16px;height:16px;accent-color:#e65100;" />
-              <span style="font-size:13px;color:#555;">Speedi Sleeve de baja</span>
-            </label>
-            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
-              <input type="checkbox" id="chkSpeediAlta" style="width:16px;height:16px;accent-color:#e65100;" />
-              <span style="font-size:13px;color:#555;">Speedi Sleeve de alta</span>
-            </label>
+            <p style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:10px;">🔶 Speedi Sleeve (solo Reductores)</p>
+            <p style="font-size:11px;color:#b45309;margin-bottom:6px;">Eje de baja — referencia</p>
+            <input type="text" id="inputSpeediBaja" placeholder="Ej: CR 99254" style="border-color:#ffb74d;background:#fffbf5;margin-bottom:10px;" />
+            <p style="font-size:11px;color:#b45309;margin-bottom:6px;">Eje de alta — referencia</p>
+            <input type="text" id="inputSpeediAlta" placeholder="Ej: CR99133" style="border-color:#ffb74d;background:#fffbf5;" />
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:4px;">
@@ -477,8 +473,8 @@
         carrito.push({
           equipoId:eq.id, equipoNombre:eq.nombre, equipoTipo:eq.tipo,
           repuestos:repsBase,
-          speediBaja: eq.tipo==='reductor' ? (eq.speediBaja||false) : false,
-          speediAlta: eq.tipo==='reductor' ? (eq.speediAlta||false) : false,
+          speediBaja: eq.tipo==='reductor' ? (eq.speediBaja||'') : '',
+          speediAlta: eq.tipo==='reductor' ? (eq.speediAlta||'') : '',
           speediEnCarrito:[] // speedi sleeve que el usuario elige agregar en solicitud
         });
         toast('✓ Equipo agregado');
@@ -498,31 +494,28 @@
         // Speedi sleeve disponibles para este reductor
         const speediDisponibles=[];
         if(item.equipoTipo==='reductor'){
-          const eq=equipos.find(e=>e.id===item.equipoId);
-          if(eq?.speediBaja) speediDisponibles.push('Speedi Sleeve de baja');
-          if(eq?.speediAlta) speediDisponibles.push('Speedi Sleeve de alta');
+          if(item.speediBaja) speediDisponibles.push({label:'Speedi Sleeve eje de baja', ref:item.speediBaja, key:'baja'});
+          if(item.speediAlta) speediDisponibles.push({label:'Speedi Sleeve eje de alta', ref:item.speediAlta, key:'alta'});
         }
         const speediSection = speediDisponibles.length>0 ? `
           <div style="background:#fff3e0;border-radius:10px;border:1.5px solid #ffb74d;padding:10px;margin-top:8px;">
             <p style="font-size:11px;font-weight:700;color:#e65100;margin-bottom:8px;">🔶 Speedi Sleeve</p>
-            ${speediDisponibles.map(nombre=>{
-              const activo=(item.speediEnCarrito||[]).find(s=>s.nombre===nombre);
+            ${speediDisponibles.map(s=>{
+              const activo=(item.speediEnCarrito||[]).find(x=>x.key===s.key);
               return `<div class="rep-ajuste-row speedi" style="margin-bottom:6px;">
-                <span class="rep-ajuste-nombre" style="font-size:12px;">${nombre}</span>
+                <span class="rep-ajuste-nombre" style="font-size:12px;">${s.label} <span style="font-size:10px;color:#b45309;">(${s.ref})</span></span>
                 ${activo
-                  ? `<div class="qty-control">
-                      <button class="qty-btn" onclick="cambiarQtySpeedi(${ci},'${nombre}',-1)" style="border-color:#ffb74d;background:#fff3e0;color:#e65100;">−</button>
-                      <span class="qty-val" style="color:#e65100;">${activo.und}</span>
-                      <button class="qty-btn" onclick="cambiarQtySpeedi(${ci},'${nombre}',1)" style="border-color:#ffb74d;background:#fff3e0;color:#e65100;">+</button>
-                    </div>
-                    <button class="btn-remove-rep" onclick="toggleSpeediCarrito(${ci},'${nombre}')">✕</button>`
-                  : `<button onclick="toggleSpeediCarrito(${ci},'${nombre}')"
+                  ? `<span style="font-size:12px;font-weight:700;color:#e65100;padding:2px 8px;">x 1</span>
+                     <button class="btn-remove-rep" onclick="toggleSpeediCarrito(${ci},'${s.key}','${s.label}','${s.ref}')">✕</button>`
+                  : `<button onclick="toggleSpeediCarrito(${ci},'${s.key}','${s.label}','${s.ref}')"
                       style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:8px;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d;cursor:pointer;">
                       + Agregar</button>`
                 }
               </div>`;
             }).join('')}
           </div>` : '';
+
+        const detalleId=`cdetalle-${ci}`;
         return `
         <div class="carrito-equipo">
           <div class="carrito-equipo-header">
@@ -530,24 +523,40 @@
               <p class="carrito-equipo-nombre">${item.equipoNombre}</p>
               <div style="margin-top:3px;">${badgeHTML(item.equipoTipo)}</div>
             </div>
-            <button class="btn-danger" onclick="toggleCarrito('${item.equipoId}')">✕</button>
+            <div style="display:flex;gap:6px;align-items:center;">
+              <button onclick="toggleCarritoDetalle('${detalleId}')" id="tbtn-${ci}"
+                style="width:28px;height:28px;border-radius:8px;border:1.5px solid #c5bff5;background:#f0eeff;color:#1a237e;font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">−</button>
+              <button class="btn-danger" onclick="toggleCarrito('${item.equipoId}')">✕</button>
+            </div>
           </div>
-          ${item.repuestos.map((r,ri)=>`
-            <div class="rep-ajuste-row ${r.removido?'removido':''}" id="crow-${ci}-${ri}">
-              <span class="rep-ajuste-nombre">${r.nombre}</span>
-              ${r.removido
-                ? `<button class="btn-restore-rep" onclick="restoreCarritoRep(${ci},${ri})">Restaurar</button>`
-                : `<div class="qty-control">
-                    <button class="qty-btn" onclick="cambiarQtyCarrito(${ci},${ri},-1)">−</button>
-                    <span class="qty-val" id="cqty-${ci}-${ri}">${r.und}</span>
-                    <button class="qty-btn" onclick="cambiarQtyCarrito(${ci},${ri},1)">+</button>
-                  </div>
-                  <button class="btn-remove-rep" onclick="removeCarritoRep(${ci},${ri})" title="Ya tengo este">✕</button>`
-              }
-            </div>`).join('')}
-          ${speediSection}
+          <div id="${detalleId}">
+            ${item.repuestos.map((r,ri)=>`
+              <div class="rep-ajuste-row ${r.removido?'removido':''}" id="crow-${ci}-${ri}">
+                <span class="rep-ajuste-nombre">${r.nombre}</span>
+                ${r.removido
+                  ? `<button class="btn-restore-rep" onclick="restoreCarritoRep(${ci},${ri})">Restaurar</button>`
+                  : `<div class="qty-control">
+                      <button class="qty-btn" onclick="cambiarQtyCarrito(${ci},${ri},-1)">−</button>
+                      <span class="qty-val" id="cqty-${ci}-${ri}">${r.und}</span>
+                      <button class="qty-btn" onclick="cambiarQtyCarrito(${ci},${ri},1)">+</button>
+                    </div>
+                    <button class="btn-remove-rep" onclick="removeCarritoRep(${ci},${ri})" title="Ya tengo este">✕</button>`
+                }
+              </div>`).join('')}
+            ${speediSection}
+          </div>
         </div>`;
       }).join('');
+    }
+
+    window.toggleCarritoDetalle=function(id){
+      const el=document.getElementById(id);
+      const ci=id.replace('cdetalle-','');
+      const btn=document.getElementById('tbtn-'+ci);
+      if(!el||!btn) return;
+      const oculto=el.style.display==='none';
+      el.style.display=oculto?'block':'none';
+      btn.textContent=oculto?'−':'+';
     }
 
     window.cambiarQtyCarrito=function(ci,ri,delta){
@@ -560,17 +569,11 @@
     window.restoreCarritoRep=function(ci,ri){
       carrito[ci].repuestos[ri].removido=false; renderCarrito();
     }
-    window.toggleSpeediCarrito=function(ci,nombre){
+    window.toggleSpeediCarrito=function(ci,key,label,ref){
       const item=carrito[ci];
-      const idx=item.speediEnCarrito.findIndex(s=>s.nombre===nombre);
+      const idx=item.speediEnCarrito.findIndex(s=>s.key===key);
       if(idx>=0){ item.speediEnCarrito.splice(idx,1); }
-      else { item.speediEnCarrito.push({nombre,und:1}); }
-      renderCarrito();
-    }
-    window.cambiarQtySpeedi=function(ci,nombre,delta){
-      const item=carrito[ci];
-      const s=item.speediEnCarrito.find(x=>x.nombre===nombre);
-      if(s) s.und=Math.max(1,(s.und||1)+delta);
+      else { item.speediEnCarrito.push({key,nombre:label,ref,und:1}); }
       renderCarrito();
     }
 
@@ -619,7 +622,7 @@
       let msgLineas=`Por favor enviar los siguientes repuestos:\n`;
       items.forEach(item=>{
         const reps=item.repuestos.filter(r=>!r.removido);
-        reps.forEach(r=>{ msgLineas+=`• ${r.nombre} x ${r.und} und\n`; });
+        reps.forEach(r=>{ const ref=r.esSpeedi&&r.ref?` (${r.ref})`:""; msgLineas+=`• ${r.nombre}${ref} x ${r.und} und\n`; });
       });
       msgLineas+=`\nQuedamos atentos a su confirmación. Muchas gracias.`;
 
@@ -637,9 +640,9 @@
           return `<div class="confirm-bloque" ${esAdicional?'style="background:#fff8e1;border-color:#ffe082;"':''}>
             <div class="confirm-bloque-titulo">${esAdicional?'➕ Repuestos adicionales':item.equipoNombre+' '+badgeHTML(item.equipoTipo)}</div>
             ${reps.map(r=>`
-              <div class="confirm-rep-row">
-                <span>${r.nombre}</span>
-                <span class="confirm-rep-und">x ${r.und} und</span>
+              <div class="confirm-rep-row" ${r.esSpeedi?'style="background:#fff3e0;border-radius:8px;"':''}>
+                <span>${r.nombre}${r.esSpeedi&&r.ref?` <span style="font-size:10px;color:#b45309;font-weight:700;">(${r.ref})</span>`:''}</span>
+                <span class="confirm-rep-und" ${r.esSpeedi?'style="background:#ffe0b2;color:#e65100;"':''}>x ${r.und} und</span>
               </div>`).join('')}
           </div>`;
         }).join('')}
@@ -915,14 +918,13 @@
       tipoSeleccionado=tipo;
       ['Motor','Reductor'].forEach(t=>
         document.getElementById('tipo'+t).className='tipo-btn'+(t.toLowerCase()===tipo?' '+tipo:''));
-      // Mostrar speedi sleeve solo para reductor
       const speediSec=document.getElementById('speediSection');
       if(speediSec) speediSec.style.display=(tipo==='reductor')?'block':'none';
       if(tipo!=='reductor'){
-        const chkB=document.getElementById('chkSpeediBaja');
-        const chkA=document.getElementById('chkSpeediAlta');
-        if(chkB) chkB.checked=false;
-        if(chkA) chkA.checked=false;
+        const inB=document.getElementById('inputSpeediBaja');
+        const inA=document.getElementById('inputSpeediAlta');
+        if(inB) inB.value='';
+        if(inA) inA.value='';
       }
     }
     window.addRepForm=function(){
@@ -943,10 +945,10 @@
       const lista=document.getElementById('repsFormLista');
       lista.innerHTML='';
       // reset speedi
-      const chkB=document.getElementById('chkSpeediBaja');
-      const chkA=document.getElementById('chkSpeediAlta');
-      if(chkB) chkB.checked=false;
-      if(chkA) chkA.checked=false;
+      const inB=document.getElementById('inputSpeediBaja');
+      const inA=document.getElementById('inputSpeediAlta');
+      if(inB) inB.value='';
+      if(inA) inA.value='';
       if(id){
         const eq=equipos.find(e=>e.id===id);
         document.getElementById('formTitulo').textContent='Editar equipo';
@@ -962,10 +964,10 @@
             <button class="btn-quitar-rep" onclick="this.parentElement.remove()">✕</button>`;
           lista.appendChild(row);
         });
-        // Restore speedi checkboxes
+        // Restore speedi inputs
         if(eq.tipo==='reductor'){
-          if(chkB) chkB.checked=!!(eq.speediBaja);
-          if(chkA) chkA.checked=!!(eq.speediAlta);
+          if(inB) inB.value=eq.speediBaja||'';
+          if(inA) inA.value=eq.speediAlta||'';
         }
       } else {
         document.getElementById('formTitulo').textContent='Nuevo equipo';
@@ -996,9 +998,9 @@
         if(n) repuestos.push({nombre:n,und:u});
       });
       if(repuestos.length===0){toast('Agrega al menos un repuesto',true);return;}
-      // Speedi sleeve
-      const speediBaja = tipoSeleccionado==='reductor' ? !!(document.getElementById('chkSpeediBaja')?.checked) : false;
-      const speediAlta = tipoSeleccionado==='reductor' ? !!(document.getElementById('chkSpeediAlta')?.checked) : false;
+      // Speedi sleeve — guardar referencia de texto
+      const speediBaja = tipoSeleccionado==='reductor' ? (document.getElementById('inputSpeediBaja')?.value.trim()||'') : '';
+      const speediAlta = tipoSeleccionado==='reductor' ? (document.getElementById('inputSpeediAlta')?.value.trim()||'') : '';
       try{
         const btn=document.getElementById('btnGuardar');
         btn.disabled=true; btn.textContent='Guardando...';
@@ -1062,8 +1064,8 @@
         const repsNormales=(eq.repuestos||[]);
         const speediItems=[];
         if(eq.tipo==='reductor'){
-          if(eq.speediBaja) speediItems.push('Speedi Sleeve de baja');
-          if(eq.speediAlta) speediItems.push('Speedi Sleeve de alta');
+          if(eq.speediBaja) speediItems.push({label:'Speedi Sleeve eje de baja', ref:eq.speediBaja});
+          if(eq.speediAlta) speediItems.push({label:'Speedi Sleeve eje de alta', ref:eq.speediAlta});
         }
         return `
         <div class="equipo-card">
@@ -1087,7 +1089,7 @@
               </div>`).join('')}
             ${speediItems.map(s=>`
               <div class="repuesto-item speedi">
-                <span>🔶 ${s}</span>
+                <span>🔶 ${s.label} <span style="font-size:11px;color:#b45309;font-weight:700;">(${s.ref})</span></span>
                 <span class="repuesto-und">x 1 und</span>
               </div>`).join('')}
           </div>
