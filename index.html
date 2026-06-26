@@ -7,7 +7,6 @@
   <meta name="theme-color" content="#1a237e" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-title" content="Repuestos" />
-  <link rel="manifest" href="manifest.json" />
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -132,70 +131,28 @@
     .rep-adicional-row { display:flex;gap:8px;align-items:center;background:#fff8e1;border:1.5px solid #ffe082;border-radius:10px;padding:8px 10px;margin-bottom:8px; }
     .rep-adicional-row input[type="text"]   { flex:3;margin:0;background:transparent;border-color:#ffe082; }
     .rep-adicional-row input[type="number"] { flex:1;margin:0;text-align:center;min-width:56px;background:transparent;border-color:#ffe082; }
+
+    /* SPEEDI SLEEVE */
+    .speedi-badge { display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d; }
+    .rep-form-row.speedi { background:#fff3e0;border-radius:10px;padding:6px 8px;border:1.5px solid #ffb74d; }
+    .rep-form-row.speedi input { background:transparent;border-color:#ffb74d; }
+    .repuesto-item.speedi { background:#fff3e0;border:1px solid #ffb74d; }
+    .repuesto-item.speedi .repuesto-und { background:#ffe0b2;color:#e65100; }
+    /* Botón speedi en solicitud/carrito */
+    .btn-speedi { width:100%;padding:7px;font-size:12px;font-weight:600;border-radius:8px;background:#fff3e0;color:#e65100;border:1.5px dashed #ffb74d;cursor:pointer;margin-top:6px; }
+    .rep-ajuste-row.speedi { background:#fff3e0;border-color:#ffb74d; }
+    /* Search + paginación en tab Equipos */
+    .equipos-search-wrap { position:relative;margin-bottom:10px; }
+    .equipos-search-wrap input { padding-left:38px; }
+    .equipos-filtro-scroll { display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none;margin-bottom:14px; }
+    .equipos-filtro-scroll::-webkit-scrollbar { display:none; }
+    .equipos-paginacion { display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap; }
     .flag-pendiente { display:inline-block;padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;background:#fce4ec;color:#880e4f;border:1px solid #f48fb1; }
     .nombre-solicitud-wrap input { font-size: 16px; font-weight: 600; border-color: transparent; background: transparent; padding: 6px 4px; }
     .nombre-solicitud-wrap input:focus { border-color: #1a237e; background: #fff; border-radius: 8px; }
   </style>
 </head>
 <body>
-
-  <!-- LOGIN -->
-  <div id="panelLogin" style="width:100%;max-width:400px;min-height:100vh;display:flex;align-items:center;justify-content:center;">
-    <div style="width:100%;">
-      <!-- HEADER -->
-      <div style="text-align:center;margin-bottom:32px;">
-        <div style="width:80px;height:80px;background:#1a237e;border-radius:24px;display:flex;align-items:center;justify-content:center;font-size:40px;margin:0 auto 16px;">🔧</div>
-        <p style="font-size:24px;font-weight:800;color:#1a237e;margin-bottom:4px;">Repuestos</p>
-        <p style="font-size:13px;color:#999;">EDISATECH</p>
-      </div>
-
-      <!-- CARD -->
-      <div style="background:#fff;border-radius:24px;padding:28px 22px;box-shadow:0 8px 32px rgba(26,35,126,0.12);">
-        <p style="font-size:16px;font-weight:700;color:#1a1a1a;margin-bottom:20px;text-align:center;">Iniciar sesión</p>
-
-        <!-- USUARIO -->
-        <div style="margin-bottom:14px;">
-          <p style="font-size:12px;font-weight:600;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Usuario</p>
-          <div style="position:relative;">
-            <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;">👤</span>
-            <input type="text" id="loginUsuario" placeholder="Correo de acceso"
-              inputmode="email" autocomplete="username"
-              style="padding-left:40px;font-size:15px;border-radius:12px;" />
-          </div>
-        </div>
-
-        <!-- CONTRASEÑA -->
-        <div style="margin-bottom:6px;">
-          <p style="font-size:12px;font-weight:600;color:#555;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.4px;">Contraseña</p>
-          <div style="position:relative;">
-            <span style="position:absolute;left:13px;top:50%;transform:translateY(-50%);font-size:16px;">🔒</span>
-            <input type="password" id="loginPassword" placeholder="Contraseña"
-              autocomplete="current-password"
-              onkeydown="if(event.key==='Enter') hacerLogin()"
-              style="padding-left:40px;padding-right:44px;font-size:15px;border-radius:12px;" />
-            <button onclick="togglePass()" id="btnVerPass"
-              style="position:absolute;right:12px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:18px;cursor:pointer;opacity:0.5;">👁️</button>
-          </div>
-        </div>
-
-        <!-- ERROR -->
-        <p id="loginError" style="color:#e53935;font-size:12px;text-align:center;margin:10px 0 0;display:none;background:#fff0f0;padding:8px;border-radius:8px;"></p>
-
-        <!-- BOTÓN -->
-        <button id="btnLogin" onclick="hacerLogin()"
-          style="width:100%;padding:14px;font-size:16px;font-weight:700;border-radius:14px;background:linear-gradient(135deg,#1a237e,#3949ab);color:#fff;border:none;cursor:pointer;margin-top:20px;letter-spacing:0.3px;box-shadow:0 4px 14px rgba(26,35,126,0.3);transition:opacity 0.2s;">
-          Ingresar →
-        </button>
-      </div>
-
-      <p style="text-align:center;font-size:11px;color:#ccc;margin-top:16px;">
-        © EDISATECH
-      </p>
-    </div>
-  </div>
-
-  <!-- CONTENIDO PRINCIPAL (oculto hasta login) -->
-  <div id="appContenido" style="display:none;width:100%;display:none;flex-direction:column;align-items:center;">
 
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('solicitud')">📋 Solicitud</button>
@@ -288,13 +245,39 @@
         <p style="font-size:11px;color:#aaa;margin-bottom:8px;">Nombre + cantidad de unidades por defecto</p>
         <div id="repsFormLista"></div>
         <button class="btn-add-rep" onclick="addRepForm()">+ Agregar repuesto</button>
+        <!-- Speedi Sleeve (solo Reductor) -->
+        <div id="speediSection" style="display:none;margin-bottom:12px;">
+          <div style="background:#fff3e0;border-radius:12px;border:1.5px solid #ffb74d;padding:12px;">
+            <p style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:8px;">🔶 Speedi Sleeve (solo Reductores)</p>
+            <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;cursor:pointer;">
+              <input type="checkbox" id="chkSpeediBaja" style="width:16px;height:16px;accent-color:#e65100;" />
+              <span style="font-size:13px;color:#555;">Speedi Sleeve de baja</span>
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+              <input type="checkbox" id="chkSpeediAlta" style="width:16px;height:16px;accent-color:#e65100;" />
+              <span style="font-size:13px;color:#555;">Speedi Sleeve de alta</span>
+            </label>
+          </div>
+        </div>
         <div style="display:flex;gap:8px;margin-top:4px;">
           <button class="btn-secondary" onclick="cancelarForm()" style="flex:1;">Cancelar</button>
           <button class="btn-primary" onclick="guardarEquipo()" style="flex:2;margin-top:0;" id="btnGuardar">Guardar</button>
         </div>
       </div>
       <button class="btn-primary" id="btnNuevoEquipo" onclick="mostrarForm()" style="margin-bottom:16px;">+ Nuevo equipo</button>
-      <div id="listaEquipos"><p class="loading">Cargando...</p></div>
+      <div id="equiposCatalogo">
+        <div class="equipos-search-wrap">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="buscadorEquipos" placeholder="Buscar equipo..." oninput="filtrarCatalogo()" />
+        </div>
+        <div class="equipos-filtro-scroll">
+          <div class="filtro-chip active" data-ef="todos"    onclick="setFiltroEquipos('todos')">Todos</div>
+          <div class="filtro-chip motor"    data-ef="motor"   onclick="setFiltroEquipos('motor')">⚡ Motor</div>
+          <div class="filtro-chip reductor" data-ef="reductor" onclick="setFiltroEquipos('reductor')">⚙️ Reductor</div>
+        </div>
+        <div id="listaEquipos"><p class="loading">Cargando...</p></div>
+        <div class="equipos-paginacion" id="equiposPaginacion"></div>
+      </div>
     </div>
   </div>
 
@@ -320,7 +303,6 @@
   </div>
 
   <!-- MODAL HISTORIAL -->
-  <!-- MODAL HISTORIAL -->
   <div class="modal-overlay hidden" id="modalOverlay" onclick="cerrarModal(event)">
     <div class="modal-box">
       <button class="modal-close" onclick="cerrarModal()">✕</button>
@@ -330,20 +312,12 @@
     </div>
   </div>
 
-  <button onclick="cerrarSesion()" style="margin-top:18px;background:none;border:none;color:#aaa;font-size:12px;cursor:pointer;text-decoration:underline;">
-    Cerrar sesión
-  </button>
-
-  </div><!-- fin appContenido -->
-
   <div class="toast" id="toast"></div>
 
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
     import { getFirestore, collection, addDoc, deleteDoc, doc, updateDoc, onSnapshot, serverTimestamp, getCountFromServer }
       from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
-    import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence }
-      from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
 
     const firebaseConfig = {
       apiKey: "AIzaSyBkq0rH7AGm9aIroUbd1qgKeKg_iDdpJ1c",
@@ -355,50 +329,6 @@
     };
     const app = initializeApp(firebaseConfig);
     const db  = getFirestore(app);
-    const auth = getAuth(app);
-
-    // ── AUTH ──
-    setPersistence(auth, browserLocalPersistence);
-
-    onAuthStateChanged(auth, user => {
-      if (user) {
-        document.getElementById('panelLogin').style.display = 'none';
-        document.getElementById('appContenido').style.display = 'flex';
-      } else {
-        document.getElementById('panelLogin').style.display = 'block';
-        document.getElementById('appContenido').style.display = 'none';
-      }
-    });
-
-    window.hacerLogin = async function() {
-      const usuario = document.getElementById('loginUsuario').value.trim();
-      const password = document.getElementById('loginPassword').value;
-      const errorEl = document.getElementById('loginError');
-      const btn = document.getElementById('btnLogin');
-      errorEl.style.display = 'none';
-      if (!usuario || !password) { errorEl.textContent='Completa todos los campos'; errorEl.style.display='block'; return; }
-      btn.disabled = true; btn.textContent = 'Ingresando...';
-      try {
-        await signInWithEmailAndPassword(auth, usuario, password);
-      } catch(e) {
-        errorEl.textContent = 'Usuario o contraseña incorrectos';
-        errorEl.style.display = 'block';
-      } finally {
-        btn.disabled = false; btn.textContent = 'Ingresar';
-      }
-    }
-
-    window.cerrarSesion = async function() {
-      if (!confirm('¿Cerrar sesión?')) return;
-      await signOut(auth);
-    }
-
-    window.togglePass = function() {
-      const input = document.getElementById('loginPassword');
-      const btn = document.getElementById('btnVerPass');
-      if (input.type === 'password') { input.type = 'text'; btn.textContent = '🙈'; }
-      else { input.type = 'password'; btn.textContent = '👁️'; }
-    }
 
     // ── STATE ──
     let equipos=[], numeros=[], historial=[];
@@ -543,9 +473,13 @@
         toast('Equipo removido del carrito');
       } else {
         const eq=equipos.find(e=>e.id===id);
+        const repsBase=(eq.repuestos||[]).map(r=>({nombre:r.nombre,und:r.und||1,removido:false}));
         carrito.push({
           equipoId:eq.id, equipoNombre:eq.nombre, equipoTipo:eq.tipo,
-          repuestos:(eq.repuestos||[]).map(r=>({nombre:r.nombre,und:r.und||1,removido:false}))
+          repuestos:repsBase,
+          speediBaja: eq.tipo==='reductor' ? (eq.speediBaja||false) : false,
+          speediAlta: eq.tipo==='reductor' ? (eq.speediAlta||false) : false,
+          speediEnCarrito:[] // speedi sleeve que el usuario elige agregar en solicitud
         });
         toast('✓ Equipo agregado');
       }
@@ -556,13 +490,40 @@
     function renderCarrito(){
       const wrap=document.getElementById('carritoWrap');
       const lista=document.getElementById('carritoLista');
-      const btnSolicitar=document.getElementById('btnSolicitar');
-      const contador=document.getElementById('contadorCarrito');
       if(carrito.length===0){
         wrap.style.display='none'; actualizarBtnSolicitar(); return;
       }
       wrap.style.display='block'; actualizarBtnSolicitar();
-      lista.innerHTML=carrito.map((item,ci)=>`
+      lista.innerHTML=carrito.map((item,ci)=>{
+        // Speedi sleeve disponibles para este reductor
+        const speediDisponibles=[];
+        if(item.equipoTipo==='reductor'){
+          const eq=equipos.find(e=>e.id===item.equipoId);
+          if(eq?.speediBaja) speediDisponibles.push('Speedi Sleeve de baja');
+          if(eq?.speediAlta) speediDisponibles.push('Speedi Sleeve de alta');
+        }
+        const speediSection = speediDisponibles.length>0 ? `
+          <div style="background:#fff3e0;border-radius:10px;border:1.5px solid #ffb74d;padding:10px;margin-top:8px;">
+            <p style="font-size:11px;font-weight:700;color:#e65100;margin-bottom:8px;">🔶 Speedi Sleeve</p>
+            ${speediDisponibles.map(nombre=>{
+              const activo=(item.speediEnCarrito||[]).find(s=>s.nombre===nombre);
+              return `<div class="rep-ajuste-row speedi" style="margin-bottom:6px;">
+                <span class="rep-ajuste-nombre" style="font-size:12px;">${nombre}</span>
+                ${activo
+                  ? `<div class="qty-control">
+                      <button class="qty-btn" onclick="cambiarQtySpeedi(${ci},'${nombre}',-1)" style="border-color:#ffb74d;background:#fff3e0;color:#e65100;">−</button>
+                      <span class="qty-val" style="color:#e65100;">${activo.und}</span>
+                      <button class="qty-btn" onclick="cambiarQtySpeedi(${ci},'${nombre}',1)" style="border-color:#ffb74d;background:#fff3e0;color:#e65100;">+</button>
+                    </div>
+                    <button class="btn-remove-rep" onclick="toggleSpeediCarrito(${ci},'${nombre}')">✕</button>`
+                  : `<button onclick="toggleSpeediCarrito(${ci},'${nombre}')"
+                      style="padding:4px 10px;font-size:11px;font-weight:600;border-radius:8px;background:#fff3e0;color:#e65100;border:1.5px solid #ffb74d;cursor:pointer;">
+                      + Agregar</button>`
+                }
+              </div>`;
+            }).join('')}
+          </div>` : '';
+        return `
         <div class="carrito-equipo">
           <div class="carrito-equipo-header">
             <div>
@@ -584,7 +545,9 @@
                   <button class="btn-remove-rep" onclick="removeCarritoRep(${ci},${ri})" title="Ya tengo este">✕</button>`
               }
             </div>`).join('')}
-        </div>`).join('');
+          ${speediSection}
+        </div>`;
+      }).join('');
     }
 
     window.cambiarQtyCarrito=function(ci,ri,delta){
@@ -596,6 +559,19 @@
     }
     window.restoreCarritoRep=function(ci,ri){
       carrito[ci].repuestos[ri].removido=false; renderCarrito();
+    }
+    window.toggleSpeediCarrito=function(ci,nombre){
+      const item=carrito[ci];
+      const idx=item.speediEnCarrito.findIndex(s=>s.nombre===nombre);
+      if(idx>=0){ item.speediEnCarrito.splice(idx,1); }
+      else { item.speediEnCarrito.push({nombre,und:1}); }
+      renderCarrito();
+    }
+    window.cambiarQtySpeedi=function(ci,nombre,delta){
+      const item=carrito[ci];
+      const s=item.speediEnCarrito.find(x=>x.nombre===nombre);
+      if(s) s.und=Math.max(1,(s.und||1)+delta);
+      renderCarrito();
     }
 
     window.irAConfirmar=async function(){
@@ -613,8 +589,14 @@
         nombre='Solicitud-'+num;
         document.getElementById('inputNombreSolicitud').value=nombre;
       }
-      // Incluir repuestos adicionales como un ítem especial si los hay
-      const itemsCompletos=JSON.parse(JSON.stringify(carrito));
+      // Incluir speedi sleeve en los items del carrito
+      const itemsCompletos=carrito.map(item=>{
+        const repsConSpeedi=[
+          ...item.repuestos.map(r=>({...r})),
+          ...(item.speediEnCarrito||[]).map(s=>({nombre:s.nombre,und:s.und,removido:false,esSpeedi:true}))
+        ];
+        return {...item, repuestos:repsConSpeedi};
+      });
       if(repAdValidos.length>0){
         itemsCompletos.push({
           equipoId:'__adicionales__',
@@ -933,6 +915,15 @@
       tipoSeleccionado=tipo;
       ['Motor','Reductor'].forEach(t=>
         document.getElementById('tipo'+t).className='tipo-btn'+(t.toLowerCase()===tipo?' '+tipo:''));
+      // Mostrar speedi sleeve solo para reductor
+      const speediSec=document.getElementById('speediSection');
+      if(speediSec) speediSec.style.display=(tipo==='reductor')?'block':'none';
+      if(tipo!=='reductor'){
+        const chkB=document.getElementById('chkSpeediBaja');
+        const chkA=document.getElementById('chkSpeediAlta');
+        if(chkB) chkB.checked=false;
+        if(chkA) chkA.checked=false;
+      }
     }
     window.addRepForm=function(){
       const lista=document.getElementById('repsFormLista');
@@ -947,9 +938,15 @@
     window.mostrarForm=function(id=null){
       document.getElementById('formEquipo').style.display='block';
       document.getElementById('btnNuevoEquipo').style.display='none';
+      document.getElementById('equiposCatalogo').style.display='none';
       equipoEditandoId=id;
       const lista=document.getElementById('repsFormLista');
       lista.innerHTML='';
+      // reset speedi
+      const chkB=document.getElementById('chkSpeediBaja');
+      const chkA=document.getElementById('chkSpeediAlta');
+      if(chkB) chkB.checked=false;
+      if(chkA) chkA.checked=false;
       if(id){
         const eq=equipos.find(e=>e.id===id);
         document.getElementById('formTitulo').textContent='Editar equipo';
@@ -965,18 +962,26 @@
             <button class="btn-quitar-rep" onclick="this.parentElement.remove()">✕</button>`;
           lista.appendChild(row);
         });
+        // Restore speedi checkboxes
+        if(eq.tipo==='reductor'){
+          if(chkB) chkB.checked=!!(eq.speediBaja);
+          if(chkA) chkA.checked=!!(eq.speediAlta);
+        }
       } else {
         document.getElementById('formTitulo').textContent='Nuevo equipo';
         document.getElementById('inputNombre').value='';
         document.getElementById('btnGuardar').textContent='Guardar';
         tipoSeleccionado=null;
         ['Motor','Reductor'].forEach(t=>document.getElementById('tipo'+t).className='tipo-btn');
+        const speediSec=document.getElementById('speediSection');
+        if(speediSec) speediSec.style.display='none';
         addRepForm();
       }
     }
     window.cancelarForm=function(){
       document.getElementById('formEquipo').style.display='none';
       document.getElementById('btnNuevoEquipo').style.display='block';
+      document.getElementById('equiposCatalogo').style.display='block';
       equipoEditandoId=null;
     }
     window.guardarEquipo=async function(){
@@ -991,14 +996,18 @@
         if(n) repuestos.push({nombre:n,und:u});
       });
       if(repuestos.length===0){toast('Agrega al menos un repuesto',true);return;}
+      // Speedi sleeve
+      const speediBaja = tipoSeleccionado==='reductor' ? !!(document.getElementById('chkSpeediBaja')?.checked) : false;
+      const speediAlta = tipoSeleccionado==='reductor' ? !!(document.getElementById('chkSpeediAlta')?.checked) : false;
       try{
         const btn=document.getElementById('btnGuardar');
         btn.disabled=true; btn.textContent='Guardando...';
+        const datos={nombre,tipo:tipoSeleccionado,repuestos,speediBaja,speediAlta};
         if(equipoEditandoId){
-          await updateDoc(doc(db,'equipos',equipoEditandoId),{nombre,tipo:tipoSeleccionado,repuestos});
+          await updateDoc(doc(db,'equipos',equipoEditandoId),datos);
           toast('✓ Actualizado');
         } else {
-          await addDoc(collection(db,'equipos'),{nombre,tipo:tipoSeleccionado,repuestos});
+          await addDoc(collection(db,'equipos'),datos);
           toast('✓ Guardado');
         }
         cancelarForm();
@@ -1013,11 +1022,50 @@
       await deleteDoc(doc(db,'equipos',id));
       toast('✓ Eliminado');
     }
+    // ── EQUIPOS CATÁLOGO (buscador, filtros, paginación, colapso) ──
+    let filtroEquipos='todos', busquedaEquipos='', paginaEquipos=0;
+    const EQUIPOS_CAT_POR_PAG=10;
+
+    window.setFiltroEquipos=function(f){
+      filtroEquipos=f; paginaEquipos=0;
+      document.querySelectorAll('.equipos-filtro-scroll .filtro-chip').forEach(c=>
+        c.classList.toggle('active',c.dataset.ef===f));
+      renderEquipos();
+    }
+    window.filtrarCatalogo=function(){
+      busquedaEquipos=(document.getElementById('buscadorEquipos')?.value||'').toLowerCase();
+      paginaEquipos=0; renderEquipos();
+    }
+    window.irPaginaEquipos=function(p){ paginaEquipos=p; renderEquipos(); }
+    window.toggleRepuestos=function(id){
+      const el=document.getElementById('reps-'+id);
+      const btn=document.getElementById('togglebtn-'+id);
+      if(!el||!btn) return;
+      const oculto=el.style.display==='none';
+      el.style.display=oculto?'block':'none';
+      btn.textContent=oculto?'−':'+';
+    }
+
     function renderEquipos(){
       const lista=document.getElementById('listaEquipos');
+      const paginacion=document.getElementById('equiposPaginacion');
       if(!lista) return;
-      if(equipos.length===0){lista.innerHTML='<p class="empty-msg">No hay equipos aún</p>';return;}
-      lista.innerHTML=equipos.map(eq=>`
+      let filtrados=equipos;
+      if(filtroEquipos!=='todos') filtrados=filtrados.filter(e=>e.tipo===filtroEquipos);
+      if(busquedaEquipos) filtrados=filtrados.filter(e=>e.nombre.toLowerCase().includes(busquedaEquipos));
+      if(filtrados.length===0){lista.innerHTML='<p class="empty-msg">No hay equipos</p>';if(paginacion)paginacion.innerHTML='';return;}
+      const totalPags=Math.ceil(filtrados.length/EQUIPOS_CAT_POR_PAG);
+      if(paginaEquipos>=totalPags) paginaEquipos=0;
+      const inicio=paginaEquipos*EQUIPOS_CAT_POR_PAG;
+      const pagina=filtrados.slice(inicio,inicio+EQUIPOS_CAT_POR_PAG);
+      lista.innerHTML=pagina.map(eq=>{
+        const repsNormales=(eq.repuestos||[]);
+        const speediItems=[];
+        if(eq.tipo==='reductor'){
+          if(eq.speediBaja) speediItems.push('Speedi Sleeve de baja');
+          if(eq.speediAlta) speediItems.push('Speedi Sleeve de alta');
+        }
+        return `
         <div class="equipo-card">
           <div class="equipo-header">
             <div>
@@ -1025,16 +1073,35 @@
               <div style="margin-top:4px;">${badgeHTML(eq.tipo)}</div>
             </div>
             <div class="equipo-acciones">
+              <button id="togglebtn-${eq.id}" onclick="toggleRepuestos('${eq.id}')"
+                style="width:30px;height:30px;border-radius:8px;border:1.5px solid #c5bff5;background:#f0eeff;color:#1a237e;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;">+</button>
               <button class="btn-secondary" onclick="mostrarForm('${eq.id}')">✏️</button>
               <button class="btn-danger"    onclick="eliminarEquipo('${eq.id}')">✕</button>
             </div>
           </div>
-          ${(eq.repuestos||[]).map(r=>`
-            <div class="repuesto-item">
-              <span>• ${r.nombre}</span>
-              <span class="repuesto-und">x ${r.und||1} und</span>
-            </div>`).join('')}
-        </div>`).join('');
+          <div id="reps-${eq.id}" style="display:none;">
+            ${repsNormales.map(r=>`
+              <div class="repuesto-item">
+                <span>• ${r.nombre}</span>
+                <span class="repuesto-und">x ${r.und||1} und</span>
+              </div>`).join('')}
+            ${speediItems.map(s=>`
+              <div class="repuesto-item speedi">
+                <span>🔶 ${s}</span>
+                <span class="repuesto-und">x 1 und</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+      }).join('');
+      // Paginación
+      if(!paginacion) return;
+      if(totalPags<=1){paginacion.innerHTML='';return;}
+      let btns='';
+      for(let i=0;i<totalPags;i++){
+        const act=i===paginaEquipos;
+        btns+=`<button onclick="irPaginaEquipos(${i})" style="width:34px;height:34px;border-radius:10px;border:1.5px solid ${act?'#1a237e':'#e0ddf8'};background:${act?'#1a237e':'#f7f6ff'};color:${act?'#fff':'#1a237e'};font-weight:700;font-size:13px;cursor:pointer;">${i+1}</button>`;
+      }
+      paginacion.innerHTML=btns;
     }
 
     // ── NÚMEROS ──
@@ -1075,11 +1142,6 @@
           <button class="btn-danger" onclick="eliminarNumero('${n.id}')">✕</button>
         </div>`).join('');
       document.getElementById('btnNuevoNumero').style.display=numeros.length>=3?'none':'block';
-    }
-  </script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('sw.js').catch(()=>{});
     }
   </script>
 </body>
