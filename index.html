@@ -223,6 +223,16 @@
     <div class="app-frame">
       <p class="app-title">Historial</p>
       <p class="app-sub">Toca una solicitud para ver el detalle</p>
+      <div class="search-wrap" style="margin-bottom:10px;">
+        <span class="search-icon">🔍</span>
+        <input type="search" id="buscadorHistorial" placeholder="Buscar por solicitud o equipo..." oninput="filtrarHistorial()" />
+      </div>
+      <div class="filtro-scroll">
+        <div class="filtro-chip active" data-fh="todos"    onclick="setFiltroHistorial('todos')">Todos</div>
+        <div class="filtro-chip"        data-fh="espera"   onclick="setFiltroHistorial('espera')">⏳ En espera</div>
+        <div class="filtro-chip"        data-fh="recibido" onclick="setFiltroHistorial('recibido')">✅ Recibido</div>
+        <div class="filtro-chip"        data-fh="borrador" onclick="setFiltroHistorial('borrador')">📋 Sin pedir</div>
+      </div>
       <div id="listaHistorial"><p class="loading">Cargando...</p></div>
     </div>
   </div>
@@ -618,11 +628,22 @@
       if(!solicitudParaConfirmar){div.innerHTML='<p class="empty-msg">Prepara una solicitud primero</p>';return;}
       const {nombre,items}=solicitudParaConfirmar;
 
-      // Construir mensaje (solo repuestos, sin separación por equipo)
-      let msgLineas=`Por favor enviar los siguientes repuestos:\n`;
+      // Construir mensaje — sumar unidades de repuestos con el mismo nombre
+      const totales=new Map();
       items.forEach(item=>{
-        const reps=item.repuestos.filter(r=>!r.removido);
-        reps.forEach(r=>{ const ref=r.esSpeedi&&r.ref?` (${r.ref})`:""; msgLineas+=`• ${r.nombre}${ref} x ${r.und} und\n`; });
+        item.repuestos.filter(r=>!r.removido).forEach(r=>{
+          const clave=r.nombre.trim().toLowerCase();
+          if(totales.has(clave)){
+            totales.get(clave).und+=r.und;
+          } else {
+            totales.set(clave,{nombre:r.nombre, und:r.und, ref:r.ref||'', esSpeedi:!!r.esSpeedi});
+          }
+        });
+      });
+      let msgLineas=`Por favor enviar los siguientes repuestos:\n`;
+      totales.forEach(r=>{
+        const ref=r.esSpeedi&&r.ref?` (${r.ref})`:"";
+        msgLineas+=`• ${r.nombre}${ref} x ${r.und} und\n`;
       });
       msgLineas+=`\nQuedamos atentos a su confirmación. Muchas gracias.`;
 
@@ -740,17 +761,59 @@
     }
 
     // ── HISTORIAL ──
+    let filtroHistorial='todos', busquedaHistorial='';
+
+    window.setFiltroHistorial=function(f){
+      filtroHistorial=f;
+      document.querySelectorAll('.filtro-scroll .filtro-chip[data-fh]').forEach(c=>
+        c.classList.toggle('active', c.dataset.fh===f));
+      renderHistorial();
+    }
+    window.filtrarHistorial=function(){
+      busquedaHistorial=(document.getElementById('buscadorHistorial')?.value||'').toLowerCase().trim();
+      renderHistorial();
+    }
+
     function renderHistorial(){
       const lista=document.getElementById('listaHistorial');
       if(!lista) return;
-      if(historial.length===0){lista.innerHTML='<p class="empty-msg">Sin solicitudes aún</p>';return;}
-      lista.innerHTML=historial.map(h=>{
-        const equiposPreview=(h.items||[]).filter(i=>i.equipoId!=='__adicionales__').map(i=>i.equipoNombre).join(', ')
-          || (h.items||[]).find(i=>i.equipoId==='__adicionales__')?'Solo repuestos adicionales':'';
+
+      let filtrados=historial;
+
+      // Filtro por estado
+      if(filtroHistorial!=='todos'){
+        filtrados=filtrados.filter(h=>{
+          if(filtroHistorial==='espera')   return !h.estado||h.estado==='espera';
+          return h.estado===filtroHistorial;
+        });
+      }
+
+      // Buscador — por nombre de solicitud o nombre de equipo
+      if(busquedaHistorial){
+        filtrados=filtrados.filter(h=>{
+          const enNombre=(h.nombre||'').toLowerCase().includes(busquedaHistorial);
+          const enEquipos=(h.items||[]).some(i=>
+            i.equipoId!=='__adicionales__' &&
+            (i.equipoNombre||'').toLowerCase().includes(busquedaHistorial));
+          return enNombre||enEquipos;
+        });
+      }
+
+      if(filtrados.length===0){
+        lista.innerHTML='<p class="empty-msg">Sin resultados</p>'; return;
+      }
+
+      lista.innerHTML=filtrados.map(h=>{
+        const equiposNombres=(h.items||[])
+          .filter(i=>i.equipoId!=='__adicionales__')
+          .map(i=>i.equipoNombre);
+        const equiposPreview=equiposNombres.length>0
+          ? equiposNombres.join(' · ')
+          : (h.items||[]).find(i=>i.equipoId==='__adicionales__')?'Solo repuestos adicionales':'';
         let flagHTML='';
-        if(h.estado==='recibido')  flagHTML='<span class="flag-recibido">✅ Recibido</span>';
+        if(h.estado==='recibido')      flagHTML='<span class="flag-recibido">✅ Recibido</span>';
         else if(h.estado==='borrador') flagHTML='<span class="flag-pendiente">📋 Sin pedir</span>';
-        else flagHTML='<span class="flag-espera">⏳ Espera</span>';
+        else                           flagHTML='<span class="flag-espera">⏳ Espera</span>';
         return `<div class="hist-card ${h.estado==='recibido'?'recibido':h.estado==='borrador'?'borrador':''}" onclick="abrirModal('${h.id}')">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
             <div style="flex:1;">
