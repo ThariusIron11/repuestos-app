@@ -159,6 +159,7 @@
     <button class="tab-btn"        onclick="switchTab('confirmar')">✅ Confirmar</button>
     <button class="tab-btn"        onclick="switchTab('historial')">📦 Historial</button>
     <button class="tab-btn"        onclick="switchTab('equipos')">⚙️ Equipos</button>
+    <button class="tab-btn"        onclick="switchTab('repuestos')">🔩 Repuestos</button>
     <button class="tab-btn"        onclick="switchTab('numeros')">📱 Números</button>
   </div>
 
@@ -234,6 +235,57 @@
         <div class="filtro-chip"        data-fh="borrador" onclick="setFiltroHistorial('borrador')">📋 Sin pedir</div>
       </div>
       <div id="listaHistorial"><p class="loading">Cargando...</p></div>
+    </div>
+  </div>
+
+  <!-- REPUESTOS -->
+  <div class="panel" id="panel-repuestos">
+    <div class="app-frame">
+      <p class="app-title">Catálogo de repuestos</p>
+      <p class="app-sub">Administra categorías y repuestos</p>
+
+      <!-- CATEGORÍAS -->
+      <div id="categoriasSection" style="margin-bottom:18px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+          <p class="sub-label" style="margin:0;">Categorías</p>
+          <button onclick="mostrarFormCategoria()" style="padding:5px 12px;font-size:12px;font-weight:600;border-radius:8px;background:#f0eeff;color:#1a237e;border:1.5px dashed #c5bff5;cursor:pointer;">+ Nueva</button>
+        </div>
+        <div id="formCategoria" style="display:none;margin-bottom:10px;">
+          <div style="display:flex;gap:8px;">
+            <input type="text" id="inputCategoria" placeholder="Ej: Rodamiento" style="margin:0;" />
+            <button onclick="guardarCategoria()" style="padding:10px 14px;background:#1a237e;color:#fff;border:none;border-radius:12px;font-weight:700;cursor:pointer;white-space:nowrap;">✓</button>
+            <button onclick="cancelarFormCategoria()" style="padding:10px 14px;background:#f5f5f5;color:#888;border:none;border-radius:12px;font-weight:700;cursor:pointer;">✕</button>
+          </div>
+        </div>
+        <div id="listaCategorias" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+
+      <hr style="border:none;border-top:1.5px solid #f0f0f0;margin-bottom:16px;" />
+
+      <!-- FORM NUEVO REPUESTO -->
+      <div id="formRepuesto" style="display:none;margin-bottom:16px;">
+        <p class="sub-label" id="formRepTitulo">Nuevo repuesto</p>
+        <p class="field-label">Categoría</p>
+        <div id="catSelectorRep" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
+        <p class="field-label">Nombre / Referencia</p>
+        <input type="text" id="inputRepNombre" placeholder="Ej: 6205" />
+        <div style="display:flex;gap:8px;margin-top:12px;">
+          <button id="btnGuardarRep" onclick="guardarRepuesto()" class="btn-primary" style="flex:1;">Guardar</button>
+          <button onclick="cancelarFormRepuesto()" class="btn-secondary" style="flex:1;">Cancelar</button>
+        </div>
+      </div>
+
+      <!-- CATÁLOGO -->
+      <div id="catalogoRepuestosWrap">
+        <button class="btn-primary" id="btnNuevoRepuesto" onclick="mostrarFormRepuesto()" style="margin-bottom:14px;">+ Nuevo repuesto</button>
+        <div class="search-wrap" style="margin-bottom:10px;">
+          <span class="search-icon">🔍</span>
+          <input type="search" id="buscadorRepuestos" placeholder="Buscar repuesto..." oninput="filtrarRepuestos()" />
+        </div>
+        <div class="filtro-scroll" id="filtroCategoriasRep" style="margin-bottom:14px;"></div>
+        <div id="listaRepuestos"><p class="loading">Cargando...</p></div>
+        <div style="display:flex;gap:6px;justify-content:center;margin-top:10px;flex-wrap:wrap;" id="paginacionRepuestos"></div>
+      </div>
     </div>
   </div>
 
@@ -337,14 +389,16 @@
     const db  = getFirestore(app);
 
     // ── STATE ──
-    let equipos=[], numeros=[], historial=[];
+    let equipos=[], numeros=[], historial=[], repuestosCatalogo=[], categorias=[];
     let tipoSeleccionado=null, equipoEditandoId=null;
     let filtroActivo='todos', busqueda='', paginaActual=0;
     const EQUIPOS_POR_PAGINA=5;
-    // carrito: [{equipoId, equipoNombre, equipoTipo, repuestos:[{nombre,und,removido}]}]
     let carrito=[];
-    let repAdicionales=[]; // [{nombre, und}]
+    let repAdicionales=[];
     let solicitudParaConfirmar=null;
+    // Repuestos catálogo state
+    let filtroCategoriasRepActivo='todos', busquedaRepuestos='', paginaRepuestos=0, repEditandoId=null, catSeleccionadaRep=null;
+    const REPS_POR_PAG=10;
 
     // ── TOAST ──
     function toast(msg,error=false){
@@ -355,13 +409,14 @@
 
     // ── TABS ──
     window.switchTab=function(tab){
-      ['solicitud','confirmar','historial','equipos','numeros'].forEach((p,i)=>{
+      ['solicitud','confirmar','historial','equipos','repuestos','numeros'].forEach((p,i)=>{
         document.getElementById('panel-'+p).classList.toggle('active',p===tab);
         document.querySelectorAll('.tab-btn')[i].classList.toggle('active',p===tab);
       });
       if(tab==='historial') renderHistorial();
       if(tab==='confirmar') renderConfirmar();
       if(tab==='numeros')   renderNumeros();
+      if(tab==='repuestos') { renderCategorias(); renderRepuestos(); }
     }
 
     // ── FIRESTORE ──
@@ -378,6 +433,16 @@
       historial=snap.docs.map(d=>({id:d.id,...d.data()}));
       historial.sort((a,b)=>(b.fecha?.seconds||0)-(a.fecha?.seconds||0));
       renderHistorial();
+    });
+    onSnapshot(collection(db,'categorias'),snap=>{
+      categorias=snap.docs.map(d=>({id:d.id,...d.data()}));
+      categorias.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+      renderCategorias(); renderRepuestos();
+    });
+    onSnapshot(collection(db,'repuestosCatalogo'),snap=>{
+      repuestosCatalogo=snap.docs.map(d=>({id:d.id,...d.data()}));
+      repuestosCatalogo.sort((a,b)=>a.nombre.localeCompare(b.nombre));
+      renderRepuestos();
     });
 
     // ── HELPERS ──
@@ -441,6 +506,16 @@
       renderListaSelect();
     }
 
+    // Cantidad por equipo en la lista de selección (multiplicador)
+    let cantidadSeleccion={};  // { equipoId: cantidad }
+
+    window.setCantSeleccion=function(id, delta, e){
+      e.stopPropagation();
+      if(!cantidadSeleccion[id]) cantidadSeleccion[id]=1;
+      cantidadSeleccion[id]=Math.max(1, cantidadSeleccion[id]+delta);
+      document.getElementById('csel-'+id).textContent=cantidadSeleccion[id];
+    }
+
     function renderListaSelect(){
       const lista=document.getElementById('listaEquiposSelect');
       const paginacion=document.getElementById('paginacionEquipos');
@@ -453,15 +528,31 @@
       const inicio=paginaActual*EQUIPOS_POR_PAGINA;
       const pagina=filtrados.slice(inicio,inicio+EQUIPOS_POR_PAGINA);
       const enCarrito=new Set(carrito.map(c=>c.equipoId));
-      lista.innerHTML=pagina.map(eq=>`
-        <div class="equipo-select-card ${enCarrito.has(eq.id)?'agregado':''}" onclick="toggleCarrito('${eq.id}')">
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <p class="equipo-select-nombre">${eq.nombre}</p>
-            <span style="font-size:18px;">${enCarrito.has(eq.id)?'✅':''}</span>
+      lista.innerHTML=pagina.map(eq=>{
+        const agregado=enCarrito.has(eq.id);
+        const cant=cantidadSeleccion[eq.id]||1;
+        return `
+        <div class="equipo-select-card ${agregado?'agregado':''}" style="cursor:default;">
+          <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;">
+            <div style="flex:1;cursor:pointer;" onclick="agregarAlCarritoConCantidad('${eq.id}')">
+              <p class="equipo-select-nombre">${eq.nombre}</p>
+              ${badgeHTML(eq.tipo)}
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;">
+              ${agregado
+                ? `<span style="font-size:18px;">✅</span>
+                   <button onclick="toggleCarrito('${eq.id}')" style="font-size:11px;padding:3px 8px;border-radius:8px;background:#fce4ec;color:#c62828;border:1px solid #f48fb1;cursor:pointer;">Quitar</button>`
+                : `<div style="display:flex;align-items:center;gap:4px;">
+                    <button onclick="setCantSeleccion('${eq.id}',-1,event)" style="width:26px;height:26px;border-radius:8px;border:1.5px solid #e0ddf8;background:#f7f6ff;color:#1a237e;font-weight:700;cursor:pointer;font-size:14px;">−</button>
+                    <span id="csel-${eq.id}" style="min-width:20px;text-align:center;font-weight:700;color:#1a237e;font-size:14px;">${cant}</span>
+                    <button onclick="setCantSeleccion('${eq.id}',1,event)" style="width:26px;height:26px;border-radius:8px;border:1.5px solid #e0ddf8;background:#f7f6ff;color:#1a237e;font-weight:700;cursor:pointer;font-size:14px;">+</button>
+                  </div>
+                  <button onclick="agregarAlCarritoConCantidad('${eq.id}')" style="font-size:11px;padding:3px 10px;border-radius:8px;background:#1a237e;color:#fff;border:none;cursor:pointer;font-weight:600;">Agregar</button>`
+              }
+            </div>
           </div>
-          ${badgeHTML(eq.tipo)}
-        </div>`).join('');
-      // Paginación numérica
+        </div>`;
+      }).join('');
       if(totalPaginas<=1){paginacion.innerHTML='';return;}
       let btns='';
       for(let i=0;i<totalPaginas;i++){
@@ -472,25 +563,35 @@
     }
     window.irPagina=function(p){paginaActual=p;renderListaSelect();}
 
+    window.agregarAlCarritoConCantidad=function(id){
+      const eq=equipos.find(e=>e.id===id);
+      const mult=cantidadSeleccion[id]||1;
+      const yaEsta=carrito.findIndex(c=>c.equipoId===id);
+      if(yaEsta>=0){ toast('Ya está en el carrito',true); return; }
+      const repsBase=(eq.repuestos||[]).map(r=>({nombre:r.nombre,und:(r.und||1)*mult,removido:false}));
+      carrito.push({
+        equipoId:eq.id, equipoNombre:eq.nombre+(mult>1?` ×${mult}`:''), equipoTipo:eq.tipo,
+        repuestos:repsBase,
+        speediBaja: eq.tipo==='reductor'?(eq.speediBaja||''):'',
+        speediAlta: eq.tipo==='reductor'?(eq.speediAlta||''):'',
+        speediEnCarrito:[]
+      });
+      cantidadSeleccion[id]=1; // reset
+      toast(`✓ ${eq.nombre}${mult>1?' ×'+mult:''} agregado`);
+      renderListaSelect();
+      renderCarrito();
+    }
+
     window.toggleCarrito=function(id){
       const idx=carrito.findIndex(c=>c.equipoId===id);
       if(idx>=0){
         carrito.splice(idx,1);
         toast('Equipo removido del carrito');
+        renderListaSelect();
+        renderCarrito();
       } else {
-        const eq=equipos.find(e=>e.id===id);
-        const repsBase=(eq.repuestos||[]).map(r=>({nombre:r.nombre,und:r.und||1,removido:false}));
-        carrito.push({
-          equipoId:eq.id, equipoNombre:eq.nombre, equipoTipo:eq.tipo,
-          repuestos:repsBase,
-          speediBaja: eq.tipo==='reductor' ? (eq.speediBaja||'') : '',
-          speediAlta: eq.tipo==='reductor' ? (eq.speediAlta||'') : '',
-          speediEnCarrito:[] // speedi sleeve que el usuario elige agregar en solicitud
-        });
-        toast('✓ Equipo agregado');
+        agregarAlCarritoConCantidad(id);
       }
-      renderListaSelect();
-      renderCarrito();
     }
 
     function renderCarrito(){
@@ -1210,6 +1311,153 @@
           <button class="btn-danger" onclick="eliminarNumero('${n.id}')">✕</button>
         </div>`).join('');
       document.getElementById('btnNuevoNumero').style.display=numeros.length>=3?'none':'block';
+    }
+
+    // ── CATEGORÍAS ──
+    window.mostrarFormCategoria=function(){
+      document.getElementById('formCategoria').style.display='block';
+      document.getElementById('inputCategoria').focus();
+    }
+    window.cancelarFormCategoria=function(){
+      document.getElementById('formCategoria').style.display='none';
+      document.getElementById('inputCategoria').value='';
+    }
+    window.guardarCategoria=async function(){
+      const nombre=document.getElementById('inputCategoria').value.trim();
+      if(!nombre){toast('Escribe el nombre',true);return;}
+      if(categorias.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase())){toast('Ya existe',true);return;}
+      try{
+        await addDoc(collection(db,'categorias'),{nombre});
+        cancelarFormCategoria();
+        toast('✓ Categoría agregada');
+      }catch(e){toast('Error',true);}
+    }
+    window.eliminarCategoria=async function(id){
+      if(!confirm('¿Eliminar esta categoría?')) return;
+      try{ await deleteDoc(doc(db,'categorias',id)); toast('Categoría eliminada'); }
+      catch(e){toast('Error',true);}
+    }
+    function renderCategorias(){
+      const wrap=document.getElementById('listaCategorias');
+      if(!wrap) return;
+      if(categorias.length===0){wrap.innerHTML='<p style="font-size:12px;color:#bbb;">Sin categorías aún</p>';return;}
+      wrap.innerHTML=categorias.map(c=>`
+        <div style="display:inline-flex;align-items:center;gap:6px;background:#f0eeff;border:1.5px solid #c5bff5;border-radius:20px;padding:4px 10px;">
+          <span style="font-size:12px;font-weight:600;color:#1a237e;">${c.nombre}</span>
+          <button onclick="eliminarCategoria('${c.id}')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:13px;padding:0;line-height:1;">✕</button>
+        </div>`).join('');
+      // También actualizar filtros en catálogo
+      renderFiltroCategoriasRep();
+    }
+    function renderFiltroCategoriasRep(){
+      const wrap=document.getElementById('filtroCategoriasRep');
+      if(!wrap) return;
+      const chips=[{id:'todos',nombre:'Todos'},...categorias];
+      wrap.innerHTML=chips.map(c=>`
+        <div class="filtro-chip${filtroCategoriasRepActivo===c.id?' active':''}"
+          onclick="setFiltroCatRep('${c.id}')">${c.nombre}</div>`).join('');
+    }
+    window.setFiltroCatRep=function(id){
+      filtroCategoriasRepActivo=id; paginaRepuestos=0; renderRepuestos();
+      renderFiltroCategoriasRep();
+    }
+
+    // ── CATÁLOGO DE REPUESTOS ──
+    window.mostrarFormRepuesto=function(id=null){
+      repEditandoId=id;
+      catSeleccionadaRep=null;
+      document.getElementById('formRepuesto').style.display='block';
+      document.getElementById('catalogoRepuestosWrap').style.display='none';
+      document.getElementById('formRepTitulo').textContent=id?'Editar repuesto':'Nuevo repuesto';
+      document.getElementById('btnGuardarRep').textContent=id?'Actualizar':'Guardar';
+      if(id){
+        const r=repuestosCatalogo.find(x=>x.id===id);
+        document.getElementById('inputRepNombre').value=r.nombre||'';
+        catSeleccionadaRep=r.categoriaId||null;
+      } else {
+        document.getElementById('inputRepNombre').value='';
+      }
+      renderCatSelectorRep();
+    }
+    window.cancelarFormRepuesto=function(){
+      document.getElementById('formRepuesto').style.display='none';
+      document.getElementById('catalogoRepuestosWrap').style.display='block';
+      repEditandoId=null; catSeleccionadaRep=null;
+    }
+    function renderCatSelectorRep(){
+      const wrap=document.getElementById('catSelectorRep');
+      if(!wrap) return;
+      wrap.innerHTML=categorias.map(c=>`
+        <div onclick="selCatRep('${c.id}')" style="padding:6px 14px;border-radius:20px;font-size:12px;font-weight:600;cursor:pointer;border:1.5px solid ${catSeleccionadaRep===c.id?'#1a237e':'#e0ddf8'};background:${catSeleccionadaRep===c.id?'#1a237e':'#f7f6ff'};color:${catSeleccionadaRep===c.id?'#fff':'#555'};">
+          ${c.nombre}</div>`).join('');
+    }
+    window.selCatRep=function(id){
+      catSeleccionadaRep=id; renderCatSelectorRep();
+    }
+    window.guardarRepuesto=async function(){
+      const nombre=document.getElementById('inputRepNombre').value.trim();
+      if(!nombre){toast('Escribe el nombre',true);return;}
+      if(!catSeleccionadaRep){toast('Selecciona una categoría',true);return;}
+      const cat=categorias.find(c=>c.id===catSeleccionadaRep);
+      const datos={nombre, categoriaId:catSeleccionadaRep, categoriaNombre:cat?.nombre||''};
+      try{
+        const btn=document.getElementById('btnGuardarRep');
+        btn.disabled=true; btn.textContent='Guardando...';
+        if(repEditandoId){
+          await updateDoc(doc(db,'repuestosCatalogo',repEditandoId),datos);
+          toast('✓ Actualizado');
+        } else {
+          await addDoc(collection(db,'repuestosCatalogo'),datos);
+          toast('✓ Repuesto agregado');
+        }
+        cancelarFormRepuesto();
+      }catch(e){toast('Error',true);}
+      finally{
+        const btn=document.getElementById('btnGuardarRep');
+        if(btn){btn.disabled=false;btn.textContent=repEditandoId?'Actualizar':'Guardar';}
+      }
+    }
+    window.eliminarRepuesto=async function(id){
+      if(!confirm('¿Eliminar este repuesto?')) return;
+      try{ await deleteDoc(doc(db,'repuestosCatalogo',id)); toast('Repuesto eliminado'); }
+      catch(e){toast('Error',true);}
+    }
+    window.filtrarRepuestos=function(){
+      busquedaRepuestos=(document.getElementById('buscadorRepuestos')?.value||'').toLowerCase().trim();
+      paginaRepuestos=0; renderRepuestos();
+    }
+    window.irPaginaRepuestos=function(p){ paginaRepuestos=p; renderRepuestos(); }
+    function renderRepuestos(){
+      const lista=document.getElementById('listaRepuestos');
+      const pag=document.getElementById('paginacionRepuestos');
+      if(!lista) return;
+      let filtrados=repuestosCatalogo;
+      if(filtroCategoriasRepActivo!=='todos') filtrados=filtrados.filter(r=>r.categoriaId===filtroCategoriasRepActivo);
+      if(busquedaRepuestos) filtrados=filtrados.filter(r=>
+        r.nombre.toLowerCase().includes(busquedaRepuestos)||
+        (r.categoriaNombre||'').toLowerCase().includes(busquedaRepuestos));
+      if(filtrados.length===0){lista.innerHTML='<p class="empty-msg">Sin repuestos</p>';if(pag)pag.innerHTML='';return;}
+      const totalPags=Math.ceil(filtrados.length/REPS_POR_PAG);
+      if(paginaRepuestos>=totalPags) paginaRepuestos=0;
+      const slice=filtrados.slice(paginaRepuestos*REPS_POR_PAG,(paginaRepuestos+1)*REPS_POR_PAG);
+      lista.innerHTML=slice.map(r=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-radius:12px;border:1.5px solid #e0ddf8;background:#f7f6ff;margin-bottom:8px;">
+          <div>
+            <p style="font-size:13px;font-weight:700;color:#1a237e;">${r.categoriaNombre||'Sin categoría'} ${r.nombre}</p>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn-secondary" onclick="mostrarFormRepuesto('${r.id}')" style="padding:6px 10px;font-size:12px;">✏️</button>
+            <button class="btn-danger"    onclick="eliminarRepuesto('${r.id}')"     style="padding:6px 10px;font-size:12px;">✕</button>
+          </div>
+        </div>`).join('');
+      if(!pag) return;
+      if(totalPags<=1){pag.innerHTML='';return;}
+      let btns='';
+      for(let i=0;i<totalPags;i++){
+        const act=i===paginaRepuestos;
+        btns+=`<button onclick="irPaginaRepuestos(${i})" style="width:34px;height:34px;border-radius:10px;border:1.5px solid ${act?'#1a237e':'#e0ddf8'};background:${act?'#1a237e':'#f7f6ff'};color:${act?'#fff':'#1a237e'};font-weight:700;font-size:13px;cursor:pointer;">${i+1}</button>`;
+      }
+      pag.innerHTML=btns;
     }
   </script>
 </body>
