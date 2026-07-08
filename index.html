@@ -59,6 +59,9 @@
     .btn-primary:hover { background: #283593; }
     .btn-primary:disabled { background: #bbb; cursor: not-allowed; }
     .btn-secondary { padding: 8px 16px; font-size: 13px; font-weight: 600; border-radius: 10px; background: #f0eeff; color: #1a237e; border: 1.5px solid #c5bff5; cursor: pointer; }
+    /* Botones de acción en pares (ej. Guardar/Cancelar) del mismo tamaño */
+    .btn-row-pair .btn-primary,
+    .btn-row-pair .btn-secondary { width: auto; padding: 12px; font-size: 14px; margin-top: 0; border-radius: 12px; }
     .btn-danger { padding: 6px 12px; font-size: 12px; font-weight: 600; border-radius: 8px; background: #fff0f0; color: #e53935; border: 1.5px solid #ffcdd2; cursor: pointer; }
     .search-wrap { position: relative; margin-bottom: 14px; }
     .search-wrap input { padding-left: 38px; }
@@ -269,7 +272,7 @@
         <div id="catSelectorRep" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
         <p class="field-label">Nombre / Referencia</p>
         <input type="text" id="inputRepNombre" placeholder="Ej: 6205" />
-        <div style="display:flex;gap:8px;margin-top:12px;">
+        <div class="btn-row-pair" style="display:flex;gap:8px;margin-top:12px;">
           <button id="btnGuardarRep" onclick="guardarRepuesto()" class="btn-primary" style="flex:1;">Guardar</button>
           <button onclick="cancelarFormRepuesto()" class="btn-secondary" style="flex:1;">Cancelar</button>
         </div>
@@ -318,7 +321,7 @@
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:4px;">
-          <button class="btn-secondary" onclick="cancelarForm()" style="flex:1;">Cancelar</button>
+          <button class="btn-secondary" onclick="cancelarForm()" style="flex:1;margin-top:0;">Cancelar</button>
           <button class="btn-primary" onclick="guardarEquipo()" style="flex:2;margin-top:0;" id="btnGuardar">Guardar</button>
         </div>
       </div>
@@ -480,12 +483,68 @@
       const lista=document.getElementById('repAdicionalLista');
       if(!lista) return;
       if(repAdicionales.length===0){lista.innerHTML='';return;}
-      lista.innerHTML=repAdicionales.map((r,i)=>`
-        <div class="rep-adicional-row">
-          <input type="text" placeholder="Nombre del repuesto" value="${r.nombre}" oninput="updateRepAdicional(${i},'nombre',this.value)" />
-          <input type="number" min="1" value="${r.und}" style="width:60px;" oninput="updateRepAdicional(${i},'und',this.value)" />
-          <button class="btn-quitar-rep" onclick="removeRepAdicional(${i})">✕</button>
-        </div>`).join('');
+      lista.innerHTML=repAdicionales.map((r,i)=>{
+        const uid=`rad-${i}`;
+        return `
+        <div class="rep-adicional-row" style="flex-direction:column;align-items:stretch;gap:6px;padding:10px;">
+          <div style="display:flex;gap:6px;align-items:center;">
+            <div style="position:relative;flex:1;">
+              <input type="text" placeholder="Buscar en catálogo..." value="${r.nombre}" autocomplete="off"
+                oninput="buscarRepAdicInline('${uid}',this.value,${i})"
+                onfocus="buscarRepAdicInline('${uid}',this.value,${i})"
+                id="inp-${uid}" ${r.repId?`data-rep-id="${r.repId}"`:''}
+                style="margin:0;" />
+              <div id="sug-${uid}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #c5bff5;border-radius:10px;z-index:99;max-height:150px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
+            <input type="number" min="1" value="${r.und}" style="width:60px;margin:0;"
+              oninput="updateRepAdicional(${i},'und',this.value)" />
+            <button class="btn-quitar-rep" onclick="removeRepAdicional(${i})">✕</button>
+          </div>
+          <div id="sel-${uid}" style="${r.repId?'':'display:none;'}font-size:11px;color:#1a237e;background:#f0eeff;padding:4px 8px;border-radius:8px;">
+            ${r.repId?'✓ Del catálogo: '+r.nombre:''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    window.buscarRepAdicInline=function(uid, q, i){
+      repAdicionales[i].nombre=q;
+      repAdicionales[i].repId=null;
+      actualizarBtnSolicitar();
+      const sug=document.getElementById('sug-'+uid);
+      if(!sug) return;
+      const query=q.trim().toLowerCase();
+      if(!query){ sug.style.display='none'; return; }
+      const resultados=repuestosCatalogo.filter(r=>
+        r.nombre.toLowerCase().includes(query)||
+        (r.categoriaNombre||'').toLowerCase().includes(query)
+      ).slice(0,8);
+      if(resultados.length===0){
+        sug.innerHTML='<div style="padding:10px;font-size:12px;color:#aaa;">Sin resultados — se usará texto libre</div>';
+      } else {
+        sug.innerHTML=resultados.map(r=>`
+          <div onclick="selRepAdicInline('${uid}',${i},'${r.id}')"
+            style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0;"
+            onmouseover="this.style.background='#f0eeff'" onmouseout="this.style.background=''">
+            <strong>${r.categoriaNombre}</strong> ${r.nombre}
+          </div>`).join('');
+      }
+      sug.style.display='block';
+    }
+
+    window.selRepAdicInline=function(uid, i, repId){
+      const r=repuestosCatalogo.find(x=>x.id===repId);
+      if(!r) return;
+      const nombre=r.categoriaNombre+' '+r.nombre;
+      repAdicionales[i].nombre=nombre;
+      repAdicionales[i].repId=repId;
+      const inp=document.getElementById('inp-'+uid);
+      const sel=document.getElementById('sel-'+uid);
+      const sug=document.getElementById('sug-'+uid);
+      if(inp) inp.value=nombre;
+      if(sel){ sel.textContent='✓ Del catálogo: '+nombre; sel.style.display='block'; }
+      if(sug) sug.style.display='none';
+      actualizarBtnSolicitar();
     }
     function actualizarBtnSolicitar(){
       const btn=document.getElementById('btnSolicitar');
@@ -1096,13 +1155,57 @@
     }
     window.addRepForm=function(){
       const lista=document.getElementById('repsFormLista');
+      const uid='rep-'+Date.now();
       const row=document.createElement('div');
       row.className='rep-form-row';
+      row.style.cssText='flex-direction:column;align-items:stretch;gap:6px;background:#f7f6ff;border:1.5px solid #e0ddf8;border-radius:10px;padding:10px;';
       row.innerHTML=`
-        <input type="text" placeholder="Nombre del repuesto" />
-        <input type="number" min="1" value="1" style="width:70px;" />
-        <button class="btn-quitar-rep" onclick="this.parentElement.remove()">✕</button>`;
+        <div style="display:flex;gap:6px;align-items:center;">
+          <div style="position:relative;flex:1;">
+            <input type="text" placeholder="Buscar en catálogo..." autocomplete="off"
+              oninput="buscarRepFormInline('${uid}',this.value)"
+              onfocus="buscarRepFormInline('${uid}',this.value)"
+              id="inp-${uid}" style="margin:0;" />
+            <div id="sug-${uid}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #c5bff5;border-radius:10px;z-index:99;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+          </div>
+          <input type="number" min="1" value="1" id="und-${uid}" style="width:70px;margin:0;" />
+          <button class="btn-quitar-rep" onclick="this.closest('.rep-form-row').remove()">✕</button>
+        </div>
+        <div id="sel-${uid}" style="display:none;font-size:11px;color:#1a237e;background:#f0eeff;padding:4px 8px;border-radius:8px;"></div>`;
       lista.appendChild(row);
+    }
+
+    window.buscarRepFormInline=function(uid, q){
+      const sug=document.getElementById('sug-'+uid);
+      if(!sug) return;
+      const query=q.trim().toLowerCase();
+      if(!query){ sug.style.display='none'; return; }
+      const resultados=repuestosCatalogo.filter(r=>
+        r.nombre.toLowerCase().includes(query)||
+        (r.categoriaNombre||'').toLowerCase().includes(query)
+      ).slice(0,8);
+      if(resultados.length===0){
+        sug.innerHTML='<div style="padding:10px;font-size:12px;color:#aaa;">Sin resultados — se usará texto libre</div>';
+      } else {
+        sug.innerHTML=resultados.map(r=>`
+          <div onclick="selRepFormInline('${uid}','${r.id}')"
+            style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0;"
+            onmouseover="this.style.background='#f0eeff'" onmouseout="this.style.background=''">
+            <strong>${r.categoriaNombre}</strong> ${r.nombre}
+          </div>`).join('');
+      }
+      sug.style.display='block';
+    }
+
+    window.selRepFormInline=function(uid, repId){
+      const r=repuestosCatalogo.find(x=>x.id===repId);
+      if(!r) return;
+      const inp=document.getElementById('inp-'+uid);
+      const sel=document.getElementById('sel-'+uid);
+      const sug=document.getElementById('sug-'+uid);
+      if(inp){ inp.value=r.categoriaNombre+' '+r.nombre; inp.dataset.repId=repId; }
+      if(sel){ sel.textContent='✓ Del catálogo: '+r.categoriaNombre+' '+r.nombre; sel.style.display='block'; }
+      if(sug){ sug.style.display='none'; }
     }
     window.mostrarForm=function(id=null){
       document.getElementById('formEquipo').style.display='block';
@@ -1123,12 +1226,26 @@
         selTipo(eq.tipo);
         document.getElementById('btnGuardar').textContent='Actualizar';
         (eq.repuestos||[]).forEach(r=>{
+          const lista=document.getElementById('repsFormLista');
+          const uid='rep-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
           const row=document.createElement('div');
           row.className='rep-form-row';
+          row.style.cssText='flex-direction:column;align-items:stretch;gap:6px;background:#f7f6ff;border:1.5px solid #e0ddf8;border-radius:10px;padding:10px;';
           row.innerHTML=`
-            <input type="text" value="${r.nombre}" />
-            <input type="number" min="1" value="${r.und||1}" style="width:70px;" />
-            <button class="btn-quitar-rep" onclick="this.parentElement.remove()">✕</button>`;
+            <div style="display:flex;gap:6px;align-items:center;">
+              <div style="position:relative;flex:1;">
+                <input type="text" autocomplete="off" value="${r.nombre}"
+                  oninput="buscarRepFormInline('${uid}',this.value)"
+                  onfocus="buscarRepFormInline('${uid}',this.value)"
+                  id="inp-${uid}" ${r.repId?`data-rep-id="${r.repId}"`:''}  style="margin:0;" />
+                <div id="sug-${uid}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #c5bff5;border-radius:10px;z-index:99;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+              </div>
+              <input type="number" min="1" value="${r.und||1}" id="und-${uid}" style="width:70px;margin:0;" />
+              <button class="btn-quitar-rep" onclick="this.closest('.rep-form-row').remove()">✕</button>
+            </div>
+            <div id="sel-${uid}" style="${r.repId?'':'display:none;'}font-size:11px;color:#1a237e;background:#f0eeff;padding:4px 8px;border-radius:8px;">
+              ${r.repId?'✓ Del catálogo: '+r.nombre:''}
+            </div>`;
           lista.appendChild(row);
         });
         // Restore speedi inputs
@@ -1160,9 +1277,17 @@
       const rows=document.querySelectorAll('#repsFormLista .rep-form-row');
       const repuestos=[];
       rows.forEach(row=>{
-        const n=row.querySelector('input[type="text"]').value.trim();
+        const inp=row.querySelector('input[type="text"]');
+        const n=inp?.value.trim();
         const u=parseInt(row.querySelector('input[type="number"]').value)||1;
-        if(n) repuestos.push({nombre:n,und:u});
+        if(!n) return;
+        const repId=inp?.dataset?.repId||null;
+        if(repId){
+          const r=repuestosCatalogo.find(x=>x.id===repId);
+          repuestos.push({nombre:r?r.categoriaNombre+' '+r.nombre:n, und:u, repId});
+        } else {
+          repuestos.push({nombre:n, und:u});
+        }
       });
       if(repuestos.length===0){toast('Agrega al menos un repuesto',true);return;}
       // Speedi sleeve — guardar referencia de texto
