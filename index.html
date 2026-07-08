@@ -315,9 +315,21 @@
           <div style="background:#fff3e0;border-radius:12px;border:1.5px solid #ffb74d;padding:12px;">
             <p style="font-size:12px;font-weight:700;color:#e65100;margin-bottom:10px;">🔶 Speedi Sleeve (solo Reductores)</p>
             <p style="font-size:11px;color:#b45309;margin-bottom:6px;">Eje de baja — referencia</p>
-            <input type="text" id="inputSpeediBaja" placeholder="Ej: CR 99254" style="border-color:#ffb74d;background:#fffbf5;margin-bottom:10px;" />
+            <div style="position:relative;margin-bottom:10px;">
+              <input type="text" id="inputSpeediBaja" placeholder="Ej: CR 99254" autocomplete="off"
+                oninput="buscarSpeediInline('baja',this.value)"
+                onfocus="buscarSpeediInline('baja',this.value)"
+                style="border-color:#ffb74d;background:#fffbf5;margin:0;" />
+              <div id="sugSpeediBaja" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #ffb74d;border-radius:10px;z-index:99;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
             <p style="font-size:11px;color:#b45309;margin-bottom:6px;">Eje de alta — referencia</p>
-            <input type="text" id="inputSpeediAlta" placeholder="Ej: CR99133" style="border-color:#ffb74d;background:#fffbf5;" />
+            <div style="position:relative;">
+              <input type="text" id="inputSpeediAlta" placeholder="Ej: CR99133" autocomplete="off"
+                oninput="buscarSpeediInline('alta',this.value)"
+                onfocus="buscarSpeediInline('alta',this.value)"
+                style="border-color:#ffb74d;background:#fffbf5;margin:0;" />
+              <div id="sugSpeediAlta" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #ffb74d;border-radius:10px;z-index:99;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+            </div>
           </div>
         </div>
         <div style="display:flex;gap:8px;margin-top:4px;">
@@ -403,6 +415,28 @@
     let filtroCategoriasRepActivo='todos', busquedaRepuestos='', paginaRepuestos=0, repEditandoId=null, catSeleccionadaRep=null;
     const REPS_POR_PAG=10;
 
+    // Categorías fijas (indispensables, no se pueden eliminar)
+    const CATEGORIAS_FIJAS=['RODAMIENTO','SELLO','SPEEDI SLEEVE'];
+    let categoriasFijasVerificadas=false;
+    function esCategoriaFija(cat){
+      return !!cat.fija || CATEGORIAS_FIJAS.some(f=>f.toLowerCase()===(cat.nombre||'').toLowerCase());
+    }
+    async function asegurarCategoriasFijas(){
+      if(categoriasFijasVerificadas) return;
+      categoriasFijasVerificadas=true;
+      for(const nombreFija of CATEGORIAS_FIJAS){
+        const existe=categorias.find(c=>c.nombre.toLowerCase()===nombreFija.toLowerCase());
+        if(!existe){
+          try{ await addDoc(collection(db,'categorias'),{nombre:nombreFija, fija:true}); }
+          catch(e){ /* silencioso */ }
+        }
+      }
+    }
+    function catPorNombre(nombre){
+      return categorias.find(c=>c.nombre.toLowerCase()===nombre.toLowerCase());
+    }
+    function catSpeedi(){ return catPorNombre('SPEEDI SLEEVE'); }
+
     // ── TOAST ──
     function toast(msg,error=false){
       const t=document.getElementById('toast');
@@ -441,6 +475,7 @@
       categorias=snap.docs.map(d=>({id:d.id,...d.data()}));
       categorias.sort((a,b)=>a.nombre.localeCompare(b.nombre));
       renderCategorias(); renderRepuestos();
+      asegurarCategoriasFijas();
     });
     onSnapshot(collection(db,'repuestosCatalogo'),snap=>{
       repuestosCatalogo=snap.docs.map(d=>({id:d.id,...d.data()}));
@@ -1153,6 +1188,49 @@
         if(inA) inA.value='';
       }
     }
+
+    // ── SPEEDI SLEEVE (autocompletado contra catálogo, categoría fija) ──
+    window.buscarSpeediInline=function(campo, q){
+      const sug=document.getElementById(campo==='baja'?'sugSpeediBaja':'sugSpeediAlta');
+      if(!sug) return;
+      const query=q.trim().toLowerCase();
+      if(!query){ sug.style.display='none'; return; }
+      const cat=catSpeedi();
+      const resultados=cat ? repuestosCatalogo.filter(r=>
+        r.categoriaId===cat.id && r.nombre.toLowerCase().includes(query)
+      ).slice(0,8) : [];
+      if(resultados.length===0){
+        sug.innerHTML='<div style="padding:10px;font-size:12px;color:#aaa;">Sin resultados — se creará como nuevo repuesto</div>';
+      } else {
+        sug.innerHTML=resultados.map(r=>`
+          <div onclick="selSpeediInline('${campo}','${r.id}')"
+            style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0;"
+            onmouseover="this.style.background='#fff3e0'" onmouseout="this.style.background=''">
+            ${r.nombre}
+          </div>`).join('');
+      }
+      sug.style.display='block';
+    }
+    window.selSpeediInline=function(campo, repId){
+      const r=repuestosCatalogo.find(x=>x.id===repId);
+      if(!r) return;
+      const inp=document.getElementById(campo==='baja'?'inputSpeediBaja':'inputSpeediAlta');
+      const sug=document.getElementById(campo==='baja'?'sugSpeediBaja':'sugSpeediAlta');
+      if(inp){ inp.value=r.nombre; }
+      if(sug){ sug.style.display='none'; }
+    }
+    // Busca en el catálogo (categoría Speedi Sleeve) por nombre; si no existe, lo crea. Devuelve el repId.
+    async function resolverRepuestoSpeedi(texto){
+      const cat=catSpeedi();
+      if(!cat) return null;
+      const nombreNorm=texto.trim().toLowerCase();
+      const existente=repuestosCatalogo.find(r=>r.categoriaId===cat.id && r.nombre.trim().toLowerCase()===nombreNorm);
+      if(existente) return existente.id;
+      try{
+        const ref=await addDoc(collection(db,'repuestosCatalogo'),{nombre:texto.trim(), categoriaId:cat.id, categoriaNombre:cat.nombre});
+        return ref.id;
+      }catch(e){ return null; }
+    }
     window.addRepForm=function(){
       const lista=document.getElementById('repsFormLista');
       const uid='rep-'+Date.now();
@@ -1296,7 +1374,9 @@
       try{
         const btn=document.getElementById('btnGuardar');
         btn.disabled=true; btn.textContent='Guardando...';
-        const datos={nombre,tipo:tipoSeleccionado,repuestos,speediBaja,speediAlta};
+        const speediBajaId = speediBaja ? await resolverRepuestoSpeedi(speediBaja) : null;
+        const speediAltaId = speediAlta ? await resolverRepuestoSpeedi(speediAlta) : null;
+        const datos={nombre,tipo:tipoSeleccionado,repuestos,speediBaja,speediAlta,speediBajaId,speediAltaId};
         if(equipoEditandoId){
           await updateDoc(doc(db,'equipos',equipoEditandoId),datos);
           toast('✓ Actualizado');
@@ -1458,6 +1538,8 @@
       }catch(e){toast('Error',true);}
     }
     window.eliminarCategoria=async function(id){
+      const cat=categorias.find(c=>c.id===id);
+      if(cat && esCategoriaFija(cat)){ toast('Esta categoría es fija y no se puede eliminar',true); return; }
       if(!confirm('¿Eliminar esta categoría?')) return;
       try{ await deleteDoc(doc(db,'categorias',id)); toast('Categoría eliminada'); }
       catch(e){toast('Error',true);}
@@ -1466,11 +1548,14 @@
       const wrap=document.getElementById('listaCategorias');
       if(!wrap) return;
       if(categorias.length===0){wrap.innerHTML='<p style="font-size:12px;color:#bbb;">Sin categorías aún</p>';return;}
-      wrap.innerHTML=categorias.map(c=>`
+      wrap.innerHTML=categorias.map(c=>{
+        const fija=esCategoriaFija(c);
+        return `
         <div style="display:inline-flex;align-items:center;gap:6px;background:#f0eeff;border:1.5px solid #c5bff5;border-radius:20px;padding:4px 10px;">
-          <span style="font-size:12px;font-weight:600;color:#1a237e;">${c.nombre}</span>
-          <button onclick="eliminarCategoria('${c.id}')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:13px;padding:0;line-height:1;">✕</button>
-        </div>`).join('');
+          <span style="font-size:12px;font-weight:600;color:#1a237e;">${c.nombre}${fija?' 🔒':''}</span>
+          ${fija?'':`<button onclick="eliminarCategoria('${c.id}')" style="background:none;border:none;color:#aaa;cursor:pointer;font-size:13px;padding:0;line-height:1;">✕</button>`}
+        </div>`;
+      }).join('');
       // También actualizar filtros en catálogo
       renderFiltroCategoriasRep();
     }

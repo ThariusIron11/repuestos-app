@@ -1,4 +1,4 @@
-const CACHE = 'repuestos-v2.4';
+const CACHE = 'repuestos-v2.5';
 const FILES = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
