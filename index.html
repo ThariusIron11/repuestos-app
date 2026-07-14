@@ -271,7 +271,12 @@
         <p class="field-label">Categoría</p>
         <div id="catSelectorRep" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"></div>
         <p class="field-label">Nombre / Referencia</p>
-        <input type="text" id="inputRepNombre" placeholder="Ej: 6205" />
+        <div style="position:relative;">
+          <input type="text" id="inputRepNombre" placeholder="Ej: 6205" autocomplete="off"
+            oninput="buscarRepNombreInline(this.value)"
+            onfocus="buscarRepNombreInline(this.value)" style="margin:0;" />
+          <div id="sugRepNombre" style="display:none;position:relative;margin-top:6px;background:#fff;border:1.5px solid #c5bff5;border-radius:10px;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.06);"></div>
+        </div>
         <div class="btn-row-pair" style="display:flex;gap:8px;margin-top:12px;">
           <button id="btnGuardarRep" onclick="guardarRepuesto()" class="btn-primary" style="flex:1;">Guardar</button>
           <button onclick="cancelarFormRepuesto()" class="btn-secondary" style="flex:1;">Cancelar</button>
@@ -306,6 +311,18 @@
         </div>
         <p class="field-label">Referencia / Nombre</p>
         <input type="text" id="inputNombre" placeholder="Ej: TR67 IEC 132" />
+        <!-- Rodamientos y sellos por eje (solo Reductor) -->
+        <div id="ejeSection" style="display:none;margin-bottom:12px;">
+          <div style="background:#e8f5e9;border-radius:12px;border:1.5px solid #a5d6a7;padding:12px;">
+            <p style="font-size:12px;font-weight:700;color:#2e7d32;margin-bottom:10px;">🟢 Rodamientos y sellos por eje (solo Reductores)</p>
+            <p style="font-size:11px;font-weight:700;color:#2e7d32;margin-bottom:6px;">Eje de baja</p>
+            <div id="repsEjeBajaLista"></div>
+            <button class="btn-add-rep" onclick="addRepEjeForm('baja')" style="margin-bottom:14px;">+ Agregar repuesto</button>
+            <p style="font-size:11px;font-weight:700;color:#2e7d32;margin-bottom:6px;">Eje de alta</p>
+            <div id="repsEjeAltaLista"></div>
+            <button class="btn-add-rep" onclick="addRepEjeForm('alta')">+ Agregar repuesto</button>
+          </div>
+        </div>
         <p class="field-label">Repuestos</p>
         <p style="font-size:11px;color:#aaa;margin-bottom:8px;">Nombre + cantidad de unidades por defecto</p>
         <div id="repsFormLista"></div>
@@ -663,9 +680,13 @@
       const yaEsta=carrito.findIndex(c=>c.equipoId===id);
       if(yaEsta>=0){ toast('Ya está en el carrito',true); return; }
       const repsBase=(eq.repuestos||[]).map(r=>({nombre:r.nombre,und:(r.und||1)*mult,removido:false}));
+      const repsEjeBajaBase=(eq.repsEjeBaja||[]).map(r=>({nombre:r.nombre,und:(r.und||1)*mult,removido:false,repId:r.repId||null}));
+      const repsEjeAltaBase=(eq.repsEjeAlta||[]).map(r=>({nombre:r.nombre,und:(r.und||1)*mult,removido:false,repId:r.repId||null}));
       carrito.push({
         equipoId:eq.id, equipoNombre:eq.nombre+(mult>1?` ×${mult}`:''), equipoTipo:eq.tipo,
         repuestos:repsBase,
+        repsEjeBaja: eq.tipo==='reductor'?repsEjeBajaBase:[],
+        repsEjeAlta: eq.tipo==='reductor'?repsEjeAltaBase:[],
         speediBaja: eq.tipo==='reductor'?(eq.speediBaja||''):'',
         speediAlta: eq.tipo==='reductor'?(eq.speediAlta||''):'',
         speediEnCarrito:[]
@@ -720,6 +741,41 @@
             }).join('')}
           </div>` : '';
 
+        const ejeSection = (item.equipoTipo==='reductor' && (((item.repsEjeBaja||[]).length)||((item.repsEjeAlta||[]).length))) ? `
+          <div style="background:#e8f5e9;border-radius:10px;border:1.5px solid #a5d6a7;padding:10px;margin-top:8px;">
+            <p style="font-size:11px;font-weight:700;color:#2e7d32;margin-bottom:8px;">🟢 Rodamientos y sellos por eje</p>
+            ${['baja','alta'].map(eje=>{
+              const arr=item[eje==='baja'?'repsEjeBaja':'repsEjeAlta']||[];
+              if(arr.length===0) return '';
+              const label=eje==='baja'?'Eje de baja':'Eje de alta';
+              const hayActivos=arr.some(r=>!r.removido);
+              const hayRemovidos=arr.some(r=>r.removido);
+              return `
+                <div style="margin-bottom:8px;">
+                  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                    <span style="font-size:11px;font-weight:700;color:#2e7d32;">${label}</span>
+                    <span style="display:flex;gap:10px;">
+                      ${hayActivos?`<button onclick="removeSubdivisionEje(${ci},'${eje}')" style="font-size:11px;color:#e53935;background:none;border:none;cursor:pointer;font-weight:600;">Quitar todo</button>`:''}
+                      ${hayRemovidos?`<button onclick="restoreSubdivisionEje(${ci},'${eje}')" style="font-size:11px;color:#2e7d32;background:none;border:none;cursor:pointer;font-weight:600;">Restaurar todo</button>`:''}
+                    </span>
+                  </div>
+                  ${arr.map((r,ri)=>`
+                    <div class="rep-ajuste-row ${r.removido?'removido':''}" id="cerow-${ci}-${eje}-${ri}">
+                      <span class="rep-ajuste-nombre">${r.nombre}</span>
+                      ${r.removido
+                        ? `<button class="btn-restore-rep" onclick="restoreCarritoRepEje(${ci},'${eje}',${ri})">Restaurar</button>`
+                        : `<div class="qty-control">
+                            <button class="qty-btn" onclick="cambiarQtyCarritoEje(${ci},'${eje}',${ri},-1)">−</button>
+                            <span class="qty-val" id="ceqty-${ci}-${eje}-${ri}">${r.und}</span>
+                            <button class="qty-btn" onclick="cambiarQtyCarritoEje(${ci},'${eje}',${ri},1)">+</button>
+                          </div>
+                          <button class="btn-remove-rep" onclick="removeCarritoRepEje(${ci},'${eje}',${ri})" title="Ya tengo este">✕</button>`
+                      }
+                    </div>`).join('')}
+                </div>`;
+            }).join('')}
+          </div>` : '';
+
         const detalleId=`cdetalle-${ci}`;
         return `
         <div class="carrito-equipo">
@@ -748,6 +804,7 @@
                     <button class="btn-remove-rep" onclick="removeCarritoRep(${ci},${ri})" title="Ya tengo este">✕</button>`
                 }
               </div>`).join('')}
+            ${ejeSection}
             ${speediSection}
           </div>
         </div>`;
@@ -774,6 +831,30 @@
     window.restoreCarritoRep=function(ci,ri){
       carrito[ci].repuestos[ri].removido=false; renderCarrito();
     }
+    window.cambiarQtyCarritoEje=function(ci,eje,ri,delta){
+      const key=eje==='baja'?'repsEjeBaja':'repsEjeAlta';
+      carrito[ci][key][ri].und=Math.max(1,(carrito[ci][key][ri].und||1)+delta);
+      const el=document.getElementById('ceqty-'+ci+'-'+eje+'-'+ri);
+      if(el) el.textContent=carrito[ci][key][ri].und;
+    }
+    window.removeCarritoRepEje=function(ci,eje,ri){
+      const key=eje==='baja'?'repsEjeBaja':'repsEjeAlta';
+      carrito[ci][key][ri].removido=true; renderCarrito();
+    }
+    window.restoreCarritoRepEje=function(ci,eje,ri){
+      const key=eje==='baja'?'repsEjeBaja':'repsEjeAlta';
+      carrito[ci][key][ri].removido=false; renderCarrito();
+    }
+    window.removeSubdivisionEje=function(ci,eje){
+      const key=eje==='baja'?'repsEjeBaja':'repsEjeAlta';
+      (carrito[ci][key]||[]).forEach(r=>r.removido=true);
+      renderCarrito();
+    }
+    window.restoreSubdivisionEje=function(ci,eje){
+      const key=eje==='baja'?'repsEjeBaja':'repsEjeAlta';
+      (carrito[ci][key]||[]).forEach(r=>r.removido=false);
+      renderCarrito();
+    }
     window.toggleSpeediCarrito=function(ci,key,label,ref){
       const item=carrito[ci];
       const idx=item.speediEnCarrito.findIndex(s=>s.key===key);
@@ -788,7 +869,13 @@
       const hayAdicionales=repAdValidos.length>0;
       if(!hayCarrito && !hayAdicionales){toast('Agrega al menos un equipo o repuesto',true);return;}
       if(hayCarrito){
-        const todosRemovidos=carrito.every(item=>item.repuestos.every(r=>r.removido));
+        const todosRemovidos=carrito.every(item=>{
+          const repsOk=(item.repuestos||[]).every(r=>r.removido);
+          const bajaOk=(item.repsEjeBaja||[]).every(r=>r.removido);
+          const altaOk=(item.repsEjeAlta||[]).every(r=>r.removido);
+          const speediVacio=(item.speediEnCarrito||[]).length===0;
+          return repsOk && bajaOk && altaOk && speediVacio;
+        });
         if(todosRemovidos && !hayAdicionales){toast('Selecciona al menos un repuesto',true);return;}
       }
       let nombre=document.getElementById('inputNombreSolicitud').value.trim();
@@ -797,10 +884,12 @@
         nombre='Solicitud-'+num;
         document.getElementById('inputNombreSolicitud').value=nombre;
       }
-      // Incluir speedi sleeve en los items del carrito
+      // Incluir speedi sleeve y rodamientos/sellos por eje en los items del carrito
       const itemsCompletos=carrito.map(item=>{
         const repsConSpeedi=[
           ...item.repuestos.map(r=>({...r})),
+          ...(item.repsEjeBaja||[]).map(r=>({...r, esEje:true, ejeLabel:'Eje de baja'})),
+          ...(item.repsEjeAlta||[]).map(r=>({...r, esEje:true, ejeLabel:'Eje de alta'})),
           ...(item.speediEnCarrito||[]).map(s=>({nombre:s.nombre,und:s.und,removido:false,esSpeedi:true}))
         ];
         return {...item, repuestos:repsConSpeedi};
@@ -856,9 +945,9 @@
           return `<div class="confirm-bloque" ${esAdicional?'style="background:#fff8e1;border-color:#ffe082;"':''}>
             <div class="confirm-bloque-titulo">${esAdicional?'➕ Repuestos adicionales':item.equipoNombre+' '+badgeHTML(item.equipoTipo)}</div>
             ${reps.map(r=>`
-              <div class="confirm-rep-row" ${r.esSpeedi?'style="background:#fff3e0;border-radius:8px;"':''}>
-                <span>${r.nombre}${r.esSpeedi&&r.ref?` <span style="font-size:10px;color:#b45309;font-weight:700;">(${r.ref})</span>`:''}</span>
-                <span class="confirm-rep-und" ${r.esSpeedi?'style="background:#ffe0b2;color:#e65100;"':''}>x ${r.und} und</span>
+              <div class="confirm-rep-row" ${(r.esSpeedi||r.esEje)?`style="background:${r.esSpeedi?'#fff3e0':'#e8f5e9'};border-radius:8px;"`:''}>
+                <span>${r.nombre}${r.esSpeedi&&r.ref?` <span style="font-size:10px;color:#b45309;font-weight:700;">(${r.ref})</span>`:''}${r.esEje?` <span style="font-size:10px;color:#2e7d32;font-weight:700;">(${r.ejeLabel})</span>`:''}</span>
+                <span class="confirm-rep-und" ${r.esSpeedi?'style="background:#ffe0b2;color:#e65100;"':r.esEje?'style="background:#c8e6c9;color:#2e7d32;"':''}>x ${r.und} und</span>
               </div>`).join('')}
           </div>`;
         }).join('')}
@@ -1181,12 +1270,96 @@
         document.getElementById('tipo'+t).className='tipo-btn'+(t.toLowerCase()===tipo?' '+tipo:''));
       const speediSec=document.getElementById('speediSection');
       if(speediSec) speediSec.style.display=(tipo==='reductor')?'block':'none';
+      const ejeSec=document.getElementById('ejeSection');
+      if(ejeSec) ejeSec.style.display=(tipo==='reductor')?'block':'none';
       if(tipo!=='reductor'){
         const inB=document.getElementById('inputSpeediBaja');
         const inA=document.getElementById('inputSpeediAlta');
         if(inB) inB.value='';
         if(inA) inA.value='';
+        const listaEjeBaja=document.getElementById('repsEjeBajaLista');
+        const listaEjeAlta=document.getElementById('repsEjeAltaLista');
+        if(listaEjeBaja) listaEjeBaja.innerHTML='';
+        if(listaEjeAlta) listaEjeAlta.innerHTML='';
       }
+    }
+    // ── RODAMIENTOS Y SELLOS POR EJE (usa todo el catálogo, excepto Speedi Sleeve) ──
+    function crearRepEjeRow(eje, r){
+      const lista=document.getElementById(eje==='baja'?'repsEjeBajaLista':'repsEjeAltaLista');
+      if(!lista) return;
+      const uid='repeje-'+eje+'-'+Date.now()+'-'+Math.random().toString(36).slice(2,6);
+      const row=document.createElement('div');
+      row.className='rep-form-row';
+      row.style.cssText='flex-direction:column;align-items:stretch;gap:6px;background:#f1f8f1;border:1.5px solid #a5d6a7;border-radius:10px;padding:10px;margin-bottom:8px;';
+      row.innerHTML=`
+        <div style="display:flex;gap:6px;align-items:center;">
+          <div style="position:relative;flex:1;">
+            <input type="text" placeholder="Buscar en catálogo..." autocomplete="off" value="${r.nombre||''}"
+              oninput="buscarRepEjeFormInline('${uid}',this.value)"
+              onfocus="buscarRepEjeFormInline('${uid}',this.value)"
+              id="inp-${uid}" ${r.repId?`data-rep-id="${r.repId}"`:''} style="margin:0;" />
+            <div id="sug-${uid}" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1.5px solid #a5d6a7;border-radius:10px;z-index:99;max-height:160px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,0.1);"></div>
+          </div>
+          <input type="number" min="1" value="${r.und||1}" id="und-${uid}" style="width:70px;margin:0;" />
+          <button class="btn-quitar-rep" onclick="this.closest('.rep-form-row').remove()">✕</button>
+        </div>
+        <div id="sel-${uid}" style="${r.repId?'':'display:none;'}font-size:11px;color:#2e7d32;background:#e8f5e9;padding:4px 8px;border-radius:8px;">
+          ${r.repId?'✓ Del catálogo: '+r.nombre:''}
+        </div>`;
+      lista.appendChild(row);
+    }
+    window.addRepEjeForm=function(eje){
+      crearRepEjeRow(eje, {nombre:'', und:1});
+    }
+    window.buscarRepEjeFormInline=function(uid, q){
+      const sug=document.getElementById('sug-'+uid);
+      if(!sug) return;
+      const query=q.trim().toLowerCase();
+      if(!query){ sug.style.display='none'; return; }
+      const catSpeediObj=catSpeedi();
+      const resultados=repuestosCatalogo.filter(r=>
+        (!catSpeediObj || r.categoriaId!==catSpeediObj.id) &&
+        (r.nombre.toLowerCase().includes(query) || (r.categoriaNombre||'').toLowerCase().includes(query))
+      ).slice(0,8);
+      if(resultados.length===0){
+        sug.innerHTML='<div style="padding:10px;font-size:12px;color:#aaa;">Sin resultados — se usará texto libre</div>';
+      } else {
+        sug.innerHTML=resultados.map(r=>`
+          <div onclick="selRepEjeFormInline('${uid}','${r.id}')"
+            style="padding:10px 12px;cursor:pointer;font-size:13px;border-bottom:1px solid #f0f0f0;"
+            onmouseover="this.style.background='#e8f5e9'" onmouseout="this.style.background=''">
+            <strong>${r.categoriaNombre}</strong> ${r.nombre}
+          </div>`).join('');
+      }
+      sug.style.display='block';
+    }
+    window.selRepEjeFormInline=function(uid, repId){
+      const r=repuestosCatalogo.find(x=>x.id===repId);
+      if(!r) return;
+      const inp=document.getElementById('inp-'+uid);
+      const sel=document.getElementById('sel-'+uid);
+      const sug=document.getElementById('sug-'+uid);
+      if(inp){ inp.value=r.categoriaNombre+' '+r.nombre; inp.dataset.repId=repId; }
+      if(sel){ sel.textContent='✓ Del catálogo: '+r.categoriaNombre+' '+r.nombre; sel.style.display='block'; }
+      if(sug){ sug.style.display='none'; }
+    }
+    function recolectarRepsEje(eje){
+      const rows=document.querySelectorAll('#'+(eje==='baja'?'repsEjeBajaLista':'repsEjeAltaLista')+' .rep-form-row');
+      const reps=[];
+      rows.forEach(row=>{
+        const inp=row.querySelector('input[type="text"]');
+        const n=inp?.value.trim();
+        const u=parseInt(row.querySelector('input[type="number"]').value)||1;
+        if(!n) return;
+        const repId=inp?.dataset?.repId||null;
+        if(repId){
+          const r=repuestosCatalogo.find(x=>x.id===repId);
+          reps.push({nombre:r?r.categoriaNombre+' '+r.nombre:n, und:u, repId});
+        } else {
+          reps.push({nombre:n, und:u});
+        }
+      });
+      return reps;
     }
 
     // ── SPEEDI SLEEVE (autocompletado contra catálogo, categoría fija) ──
@@ -1297,6 +1470,11 @@
       const inA=document.getElementById('inputSpeediAlta');
       if(inB) inB.value='';
       if(inA) inA.value='';
+      // reset rodamientos/sellos por eje
+      const listaEjeBaja=document.getElementById('repsEjeBajaLista');
+      const listaEjeAlta=document.getElementById('repsEjeAltaLista');
+      if(listaEjeBaja) listaEjeBaja.innerHTML='';
+      if(listaEjeAlta) listaEjeAlta.innerHTML='';
       if(id){
         const eq=equipos.find(e=>e.id===id);
         document.getElementById('formTitulo').textContent='Editar equipo';
@@ -1326,10 +1504,12 @@
             </div>`;
           lista.appendChild(row);
         });
-        // Restore speedi inputs
+        // Restore speedi inputs y rodamientos/sellos por eje
         if(eq.tipo==='reductor'){
           if(inB) inB.value=eq.speediBaja||'';
           if(inA) inA.value=eq.speediAlta||'';
+          (eq.repsEjeBaja||[]).forEach(r=>crearRepEjeRow('baja', r));
+          (eq.repsEjeAlta||[]).forEach(r=>crearRepEjeRow('alta', r));
         }
       } else {
         document.getElementById('formTitulo').textContent='Nuevo equipo';
@@ -1339,6 +1519,8 @@
         ['Motor','Reductor'].forEach(t=>document.getElementById('tipo'+t).className='tipo-btn');
         const speediSec=document.getElementById('speediSection');
         if(speediSec) speediSec.style.display='none';
+        const ejeSec=document.getElementById('ejeSection');
+        if(ejeSec) ejeSec.style.display='none';
         addRepForm();
       }
     }
@@ -1367,16 +1549,20 @@
           repuestos.push({nombre:n, und:u});
         }
       });
-      if(repuestos.length===0){toast('Agrega al menos un repuesto',true);return;}
       // Speedi sleeve — guardar referencia de texto
       const speediBaja = tipoSeleccionado==='reductor' ? (document.getElementById('inputSpeediBaja')?.value.trim()||'') : '';
       const speediAlta = tipoSeleccionado==='reductor' ? (document.getElementById('inputSpeediAlta')?.value.trim()||'') : '';
+      // Rodamientos y sellos por eje
+      const repsEjeBaja = tipoSeleccionado==='reductor' ? recolectarRepsEje('baja') : [];
+      const repsEjeAlta = tipoSeleccionado==='reductor' ? recolectarRepsEje('alta') : [];
+      const totalItems = repuestos.length + repsEjeBaja.length + repsEjeAlta.length + (speediBaja?1:0) + (speediAlta?1:0);
+      if(totalItems===0){toast('Agrega al menos un repuesto',true);return;}
       try{
         const btn=document.getElementById('btnGuardar');
         btn.disabled=true; btn.textContent='Guardando...';
         const speediBajaId = speediBaja ? await resolverRepuestoSpeedi(speediBaja) : null;
         const speediAltaId = speediAlta ? await resolverRepuestoSpeedi(speediAlta) : null;
-        const datos={nombre,tipo:tipoSeleccionado,repuestos,speediBaja,speediAlta,speediBajaId,speediAltaId};
+        const datos={nombre,tipo:tipoSeleccionado,repuestos,speediBaja,speediAlta,speediBajaId,speediAltaId,repsEjeBaja,repsEjeAlta};
         if(equipoEditandoId){
           await updateDoc(doc(db,'equipos',equipoEditandoId),datos);
           toast('✓ Actualizado');
@@ -1439,6 +1625,11 @@
           if(eq.speediBaja) speediItems.push({label:'Speedi Sleeve eje de baja', ref:eq.speediBaja});
           if(eq.speediAlta) speediItems.push({label:'Speedi Sleeve eje de alta', ref:eq.speediAlta});
         }
+        const ejeItems=[];
+        if(eq.tipo==='reductor'){
+          (eq.repsEjeBaja||[]).forEach(r=>ejeItems.push({...r, label:'Eje de baja'}));
+          (eq.repsEjeAlta||[]).forEach(r=>ejeItems.push({...r, label:'Eje de alta'}));
+        }
         return `
         <div class="equipo-card">
           <div class="equipo-header">
@@ -1457,6 +1648,11 @@
             ${repsNormales.map(r=>`
               <div class="repuesto-item">
                 <span>• ${r.nombre}</span>
+                <span class="repuesto-und">x ${r.und||1} und</span>
+              </div>`).join('')}
+            ${ejeItems.map(r=>`
+              <div class="repuesto-item" style="background:#e8f5e9;">
+                <span>🟢 ${r.nombre} <span style="font-size:11px;color:#2e7d32;font-weight:700;">(${r.label})</span></span>
                 <span class="repuesto-und">x ${r.und||1} und</span>
               </div>`).join('')}
             ${speediItems.map(s=>`
@@ -1587,12 +1783,16 @@
       } else {
         document.getElementById('inputRepNombre').value='';
       }
+      const sug=document.getElementById('sugRepNombre');
+      if(sug){ sug.style.display='none'; sug.innerHTML=''; }
       renderCatSelectorRep();
     }
     window.cancelarFormRepuesto=function(){
       document.getElementById('formRepuesto').style.display='none';
       document.getElementById('catalogoRepuestosWrap').style.display='block';
       repEditandoId=null; catSeleccionadaRep=null;
+      const sug=document.getElementById('sugRepNombre');
+      if(sug){ sug.style.display='none'; sug.innerHTML=''; }
     }
     function renderCatSelectorRep(){
       const wrap=document.getElementById('catSelectorRep');
@@ -1603,11 +1803,36 @@
     }
     window.selCatRep=function(id){
       catSeleccionadaRep=id; renderCatSelectorRep();
+      buscarRepNombreInline(document.getElementById('inputRepNombre')?.value||'');
+    }
+    window.buscarRepNombreInline=function(q){
+      const sug=document.getElementById('sugRepNombre');
+      if(!sug) return;
+      const query=q.trim().toLowerCase();
+      if(!query || !catSeleccionadaRep){ sug.style.display='none'; sug.innerHTML=''; return; }
+      const resultados=repuestosCatalogo.filter(r=>
+        r.categoriaId===catSeleccionadaRep &&
+        r.id!==repEditandoId &&
+        r.nombre.toLowerCase().includes(query)
+      ).slice(0,8);
+      if(resultados.length===0){ sug.style.display='none'; sug.innerHTML=''; return; }
+      sug.innerHTML=resultados.map(r=>{
+        const exacto=r.nombre.toLowerCase()===query;
+        return `<div style="padding:8px 12px;font-size:12px;border-bottom:1px solid #f0f0f0;${exacto?'color:#e53935;font-weight:700;':'color:#666;'}">
+          ${exacto?'⚠️ Ya existe: ':'Similar: '}${r.nombre}
+        </div>`;
+      }).join('');
+      sug.style.display='block';
     }
     window.guardarRepuesto=async function(){
       const nombre=document.getElementById('inputRepNombre').value.trim();
       if(!nombre){toast('Escribe el nombre',true);return;}
       if(!catSeleccionadaRep){toast('Selecciona una categoría',true);return;}
+      const yaExiste=repuestosCatalogo.some(r=>
+        r.categoriaId===catSeleccionadaRep &&
+        r.id!==repEditandoId &&
+        r.nombre.trim().toLowerCase()===nombre.toLowerCase());
+      if(yaExiste){toast('Ya existe ese repuesto en esta categoría',true);return;}
       const cat=categorias.find(c=>c.id===catSeleccionadaRep);
       const datos={nombre, categoriaId:catSeleccionadaRep, categoriaNombre:cat?.nombre||''};
       try{
